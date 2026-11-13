@@ -26,6 +26,78 @@ namespace EurekaMine
 			Church(b);
 			Headframe(b);
 			Stack(b);
+			YardDressing(b);
+		}
+
+		/// <summary>
+		/// The yard round the grid: poles carrying the power down the road to the drift, the brick lamp house and wash house where the
+		/// shift changes, a timber yard, and the safety board facing the grid.
+		/// </summary>
+		private static void YardDressing(Dictionary<string, Batch> b)
+		{
+			Batch pole = Get(b, "poles", Tex.Timber, new Color(0.6f, 0.55f, 0.5f));
+			Batch wire = Get(b, "wires", Tex.Belt, Color.white);
+			Road r = Route.Runin;
+			Vector3 last0 = Vector3.zero, last1 = Vector3.zero;
+			bool first = true;
+			for (int k = 0; k <= RouteData.RuninMouth; k += 5)
+			{
+				Vector3 at = r.At(k) - r.Right(k) * (r.Half + 9f);
+				pole.Cylinder(at, at + Vector3.up * 30f, 0.7f, 6, 4f, false);
+				pole.Box(at + Vector3.up * 27.5f, new Vector3(0.8f, 0.8f, 9f), Quaternion.LookRotation(r.Forward(k), Vector3.up) * Quaternion.Euler(0f, 90f, 0f), 3f);
+				Vector3 w0 = at + Vector3.up * 28f + r.Forward(k) * 3.5f, w1 = at + Vector3.up * 28f - r.Forward(k) * 3.5f;
+				if (!first)
+				{
+					foreach (Vector3[] span in new[] { new[] { last0, w0 }, new[] { last1, w1 } })
+					{
+						Vector3 mid = (span[0] + span[1]) * 0.5f + Vector3.down * 2.5f;
+						wire.Cylinder(span[0], mid, 0.12f, 3, 2f, false);
+						wire.Cylinder(mid, span[1], 0.12f, 3, 2f, false);
+					}
+				}
+				last0 = w0;
+				last1 = w1;
+				first = false;
+			}
+
+			Batch brick = Get(b, "boiler house", Tex.Brick, new Color(0.9f, 0.9f, 0.9f), true);
+			brick.Wall = true;
+			Batch roof = Get(b, "breaker roofs", Tex.Corrugated, new Color(0.6f, 0.58f, 0.56f));
+			Batch windows = Get(b, "breaker windows", Tex.Plain, new Color(0.95f, 0.8f, 0.45f));
+			// the lamp house and the wash house, south of the road beyond the siding, end on to it
+			foreach (float x in new[] { -1660f, -1560f })
+			{
+				brick.Gable(new Vector3(x, 0f, -270f), 40f, 26f, 18f, 7f, Quaternion.identity, 8f, roof);
+				for (float wx = x - 14f; wx <= x + 14f; wx += 7f)
+				{
+					windows.Quad(new Vector3(wx + 1.5f, 6f, -257.1f), new Vector3(wx + 1.5f, 11f, -257.1f), new Vector3(wx - 1.5f, 11f, -257.1f), new Vector3(wx - 1.5f, 6f, -257.1f), 4f);
+				}
+			}
+			SceneBuilder.Labels.Add(new Label { Pos = new Vector3(-1660f, 21f, -256.6f), Facing = Vector3.forward, Text = "LAMP HOUSE", Color = new Color(0.95f, 0.9f, 0.8f), Size = new Vector2(30f, 4f) });
+			SceneBuilder.Labels.Add(new Label { Pos = new Vector3(-1560f, 21f, -256.6f), Facing = Vector3.forward, Text = "WASH HOUSE", Color = new Color(0.95f, 0.9f, 0.8f), Size = new Vector2(30f, 4f) });
+
+			// the timber yard north of the road, by the breaker
+			Batch logs = Get(b, "timber yard", Tex.Timber, new Color(0.75f, 0.68f, 0.6f), true);
+			for (int pile = 0; pile < 3; pile++)
+			{
+				for (int k = 0; k < 9; k++)
+				{
+					logs.Box(new Vector3(-1660f + pile * 28f, 1f + (k / 3) * 2f, 20f + (k % 3) * 2.2f), new Vector3(22f, 1.9f, 2f), Quaternion.identity, 4f);
+				}
+			}
+
+			// the safety board facing the grid, on posts beside the road
+			Batch board = Get(b, "safety board", Tex.Enamel, new Color(0.93f, 0.9f, 0.82f));
+			int bi = RouteData.RuninMouth - 3;
+			Vector3 c = r.At(bi) + r.Right(bi) * (r.Half + 16f) + Vector3.up * 16f;
+			board.Box(c, new Vector3(1f, 12f, 30f), Quaternion.identity, 6f);
+			pole.Box(c + new Vector3(0f, -11f, -10f), new Vector3(1.2f, 12f, 1.2f), Quaternion.identity, 3f);
+			pole.Box(c + new Vector3(0f, -11f, 10f), new Vector3(1.2f, 12f, 1.2f), Quaternion.identity, 3f);
+			SceneBuilder.Labels.Add(new Label { Pos = c + Vector3.left * 0.6f, Facing = Vector3.left, Text = "EUREKA MINE\nSAFETY FIRST\nTHINK - THEN ACT", Color = new Color(0.75f, 0.08f, 0.05f), Size = new Vector2(28f, 10f) });
+			// and over the drift mouth
+			Vector3 m = r.At(RouteData.RuninMouth);
+			board.Box(new Vector3(HillX0 - 0.6f, Mine.Height + 13f, m.z), new Vector3(0.6f, 5f, 40f), Quaternion.identity, 6f);
+			SceneBuilder.Labels.Add(new Label { Pos = new Vector3(HillX0 - 1f, Mine.Height + 13f, m.z), Facing = Vector3.left, Text = "SAFETY FIRST", Color = new Color(0.75f, 0.08f, 0.05f), Size = new Vector2(38f, 4.5f) });
 		}
 
 		private static Batch Get(Dictionary<string, Batch> b, string name, Texture2D tex, Color tint, bool collide = false)

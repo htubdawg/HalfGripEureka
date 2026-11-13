@@ -14,8 +14,21 @@ for (const b of scene.batches) {
   // Unity is left-handed: z is mirrored, which flips the winding, so each triangle's order is swapped back
   const pos = g.attributes.position; for (let i = 0; i < pos.count; i++) pos.setZ(i, -pos.getZ(i));
   const idx = b.t.slice(); for (let i = 0; i < idx.length; i += 3) { const k = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = k; } g.setIndex(idx); g.computeVertexNormals();
-  const c = new THREE.Color(b.color[0], b.color[1], b.color[2]);
-  const m = b.emissive ? new THREE.MeshBasicMaterial({color: 0xffd080}) : new THREE.MeshLambertMaterial({color: c, side: THREE.FrontSide});
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+  let map = null;
+  const t = scene.textures[b.tex];
+  if (t) {
+    if (!t.three) {
+      const raw = Uint8Array.from(atob(t.px), ch => ch.charCodeAt(0));
+      t.three = new THREE.DataTexture(raw, t.size, t.size, THREE.RGBAFormat);
+      t.three.magFilter = THREE.NearestFilter; t.three.minFilter = THREE.NearestFilter;
+      t.three.wrapS = t.three.wrapT = THREE.RepeatWrapping; t.three.colorSpace = THREE.SRGBColorSpace; t.three.needsUpdate = true;
+    }
+    map = t.three;
+  }
+  const tint = new THREE.Color(b.tint[0], b.tint[1], b.tint[2]);
+  const side = b.two ? THREE.DoubleSide : THREE.FrontSide;
+  const m = b.emissive ? new THREE.MeshBasicMaterial({color: tint, map}) : new THREE.MeshLambertMaterial({color: tint, map, side});
   const mesh = new THREE.Mesh(g, m); mesh.name = b.name; world.add(mesh); groups[b.name] = mesh;
 }
 world.add(new THREE.HemisphereLight(0xcfd6dc, 0x40382f, 1.1));

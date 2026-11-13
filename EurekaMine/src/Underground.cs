@@ -90,16 +90,17 @@ namespace EurekaMine
 				{
 					sun.intensity = sunIntensity * Mathf.Lerp(1f, 0.0f, dark);
 				}
-				Color tint = new Color(0.55f, 0.48f, 0.40f);
-				RenderSettings.ambientSkyColor = Color.Lerp(skyColor, skyColor * 0.35f * tint, dark);
-				RenderSettings.ambientEquatorColor = Color.Lerp(equatorColor, equatorColor * 0.35f * tint, dark);
-				RenderSettings.ambientGroundColor = Color.Lerp(groundColor, groundColor * 0.35f * tint, dark);
-				RenderSettings.ambientIntensity = Mathf.Lerp(ambientIntensity, ambientIntensity * 0.8f, dark);
+				// a fixed warm dusk underground, not a share of the sky's light (the ash day's sky is already dim): dark enough that the
+				// lamps and headlights matter, light enough that the rock-dusted walls always read
+				RenderSettings.ambientSkyColor = Color.Lerp(skyColor, new Color(0.30f, 0.28f, 0.25f), dark);
+				RenderSettings.ambientEquatorColor = Color.Lerp(equatorColor, new Color(0.24f, 0.22f, 0.19f), dark);
+				RenderSettings.ambientGroundColor = Color.Lerp(groundColor, new Color(0.13f, 0.12f, 0.11f), dark);
+				RenderSettings.ambientIntensity = Mathf.Lerp(ambientIntensity, 1f, dark);
 				RenderSettings.fog = true;
-				RenderSettings.fogColor = Color.Lerp(fogColor, new Color(0.05f, 0.04f, 0.035f), dark);
+				RenderSettings.fogColor = Color.Lerp(fogColor, new Color(0.07f, 0.06f, 0.05f), dark);
 				float haze = dark * dark;
-				RenderSettings.fogStartDistance = Mathf.Lerp(fogStart, 10f, haze);
-				RenderSettings.fogEndDistance = Mathf.Lerp(fogEnd, 520f, haze);
+				RenderSettings.fogStartDistance = Mathf.Lerp(fogStart, 60f, haze);
+				RenderSettings.fogEndDistance = Mathf.Lerp(fogEnd, 900f, haze);
 			}
 			else if (captured)
 			{
@@ -179,11 +180,12 @@ namespace EurekaMine
 				go.transform.SetParent(transform, false);
 				Light l = go.AddComponent<Light>();
 				l.type = LightType.Point;
-				l.range = 62f;
-				l.intensity = 3.2f;
-				l.color = new Color(1f, 0.78f, 0.5f);
+				// not Important: the renderer gives each object only a few lights, and the cars' headlights must win them
+				l.range = 48f;
+				l.intensity = 70f;
+				l.color = new Color(1f, 0.8f, 0.55f);
 				l.shadows = LightShadows.None;
-				l.renderMode = LightRenderMode.ForcePixel;
+				l.renderMode = LightRenderMode.Auto;
 				go.SetActive(false);
 				pool.Add(l);
 			}

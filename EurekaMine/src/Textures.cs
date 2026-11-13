@@ -9,6 +9,7 @@ namespace EurekaMine
 	internal static class Tex
 	{
 		internal static Texture2D Rock, Coal, Timber, Boards, Corrugated, Brick, Grass, Gravel, Steel, Clapboard, Culm, Plain, Shingle;
+		internal static Texture2D RibWall, RoofBolts, MineFloor, Brattice, Chevron, Enamel, Concrete, Belt, OldRib;
 
 		private static bool made;
 
@@ -88,6 +89,73 @@ namespace EurekaMine
 				return edge ? c * 0.6f : c;
 			});
 			Plain = Paint("plain", 4, 13, (x, y, n) => Color.white);
+			// A rib (mine wall) sprayed white with rock dust, as the law has wanted since the early 1900s against coal-dust explosions,
+			// with the black coal seam showing through in a band. The u axis runs up the wall: the walls are drawn with one tile from floor to top.
+			RibWall = Paint("rib", 64, 14, (x, y, n) =>
+			{
+				float v = n.Value();
+				bool seam = x > 18 && x < 36 + (y % 7 == 0 ? 1 : 0);
+				bool parting = x == 27 || x == 28;   // a thin band of slate in the seam
+				Color dust = Color.Lerp(new Color(0.66f, 0.65f, 0.61f), new Color(0.80f, 0.79f, 0.75f), v);
+				Color coal = Color.Lerp(new Color(0.07f, 0.07f, 0.08f), new Color(0.20f, 0.20f, 0.22f), v * v);
+				if (seam)
+				{
+					return parting ? new Color(0.30f, 0.29f, 0.28f) : (v > 0.85f ? Color.Lerp(coal, dust, 0.6f) : coal);
+				}
+				// dust thinning to bare grey rock near the floor, and streaks where water ran
+				if (x < 6)
+				{
+					dust = Color.Lerp(new Color(0.32f, 0.30f, 0.28f), dust, x / 6f);
+				}
+				return y % 13 == 0 && v > 0.5f ? dust * 0.85f : dust;
+			});
+			// the old workings: never dusted, grey rock and coal, darker
+			OldRib = Paint("oldrib", 64, 15, (x, y, n) =>
+			{
+				float v = n.Value();
+				bool seam = x > 18 && x < 38;
+				return seam ? Color.Lerp(new Color(0.06f, 0.06f, 0.07f), new Color(0.16f, 0.16f, 0.18f), v)
+					: Color.Lerp(new Color(0.28f, 0.26f, 0.24f), new Color(0.38f, 0.36f, 0.33f), v);
+			});
+			// the roof: dusted, with a roof bolt's square plate every 16 pixels
+			RoofBolts = Paint("roof", 32, 16, (x, y, n) =>
+			{
+				Color dust = Color.Lerp(new Color(0.58f, 0.57f, 0.54f), new Color(0.70f, 0.69f, 0.65f), n.Value());
+				int bx = x % 16, by = y % 16;
+				if (bx >= 6 && bx <= 9 && by >= 6 && by <= 9)
+				{
+					return bx == 7 && by == 7 || bx == 8 && by == 8 ? new Color(0.2f, 0.2f, 0.22f) : new Color(0.42f, 0.40f, 0.38f);
+				}
+				return dust;
+			});
+			MineFloor = Paint("floor", 32, 17, (x, y, n) =>
+			{
+				float v = n.Value();
+				return v > 0.9f ? new Color(0.45f, 0.43f, 0.40f) : Color.Lerp(new Color(0.20f, 0.19f, 0.18f), new Color(0.30f, 0.29f, 0.27f), v);
+			});
+			Brattice = Paint("brattice", 32, 18, (x, y, n) =>
+			{
+				// yellow fire-resistant curtain, with its folds and grime
+				float fold = Mathf.Sin(x * 0.8f) * 0.5f + 0.5f;
+				Color c = Color.Lerp(new Color(0.62f, 0.50f, 0.12f), new Color(0.86f, 0.72f, 0.22f), fold);
+				return y < 4 ? c * 0.55f : c * (0.9f + n.Value() * 0.1f);
+			});
+			Chevron = Paint("chevron", 32, 19, (x, y, n) =>
+			{
+				// a black arrow pointing +u on yellow (the stroke runs back toward -u away from the middle row)
+				int d = Mathf.Abs(y - 16);
+				int edge = (x + d) % 16;
+				bool arrow = edge < 6;
+				return arrow ? new Color(0.06f, 0.06f, 0.06f) : new Color(1f, 0.78f, 0.08f);
+			});
+			Enamel = Paint("enamel", 16, 20, (x, y, n) => Color.Lerp(new Color(0.85f, 0.85f, 0.85f), Color.white, n.Value()) * (n.Value() > 0.93f ? 0.6f : 1f));
+			Concrete = Paint("concrete", 32, 21, (x, y, n) =>
+			{
+				bool joint = y % 8 == 0 || (x + (y / 8 % 2) * 8) % 16 == 0;
+				Color c = Color.Lerp(new Color(0.55f, 0.55f, 0.53f), new Color(0.68f, 0.67f, 0.64f), n.Value());
+				return joint ? c * 0.7f : c;
+			});
+			Belt = Paint("belt", 16, 22, (x, y, n) => Color.Lerp(new Color(0.06f, 0.06f, 0.06f), new Color(0.14f, 0.14f, 0.14f), n.Value()));
 		}
 
 		private delegate Color Painter(int x, int y, Noise n);

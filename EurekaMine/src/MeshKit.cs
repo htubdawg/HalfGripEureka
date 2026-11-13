@@ -26,6 +26,7 @@ namespace EurekaMine
 		internal bool Wall;
 		internal bool Slippery;
 		internal bool Shadows = true;
+		internal bool TwoSided;
 		internal Color Emission;
 		internal Surface Ground;
 
@@ -161,6 +162,65 @@ namespace EurekaMine
 					Quad(p[k, i], p[k + 1, i], p[k + 1, i1], p[k, i1], tile);
 				}
 			}
+		}
+
+		/// <summary>A quad seen from both sides (cloth, niche walls): the same corners wound both ways.</summary>
+		internal void QuadBoth(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float tile)
+		{
+			Quad(a, b, c, d, tile);
+			Quad(d, c, b, a, tile);
+		}
+
+		/// <summary>
+		/// The batch cut into square cells of the ground plan (by each triangle's middle), one mesh per cell. The game's renderer lets only a
+		/// few lights touch each object, chosen per object: one mesh across the whole mine meant the cars' headlights mostly lost out.
+		/// Cells also let the camera skip what is out of view.
+		/// </summary>
+		internal List<Mesh> ToMeshes(float cell)
+		{
+			Dictionary<long, List<int>> cells = new Dictionary<long, List<int>>();
+			for (int k = 0; k < t.Count; k += 3)
+			{
+				Vector3 c = (v[t[k]] + v[t[k + 1]] + v[t[k + 2]]) / 3f;
+				long key = ((long)Mathf.FloorToInt(c.x / cell) << 32) ^ (uint)Mathf.FloorToInt(c.z / cell);
+				if (!cells.TryGetValue(key, out List<int> list))
+				{
+					list = new List<int>();
+					cells[key] = list;
+				}
+				list.Add(k);
+			}
+			List<Mesh> meshes = new List<Mesh>();
+			foreach (List<int> tris in cells.Values)
+			{
+				Dictionary<int, int> remap = new Dictionary<int, int>();
+				List<Vector3> cv = new List<Vector3>();
+				List<Vector2> cuv = new List<Vector2>();
+				List<int> ct = new List<int>();
+				foreach (int k in tris)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						int old = t[k + j];
+						if (!remap.TryGetValue(old, out int idx))
+						{
+							idx = cv.Count;
+							remap[old] = idx;
+							cv.Add(v[old]);
+							cuv.Add(uv[old]);
+						}
+						ct.Add(idx);
+					}
+				}
+				Mesh m = new Mesh { name = Name, indexFormat = IndexFormat.UInt32 };
+				m.SetVertices(cv);
+				m.SetUVs(0, cuv);
+				m.SetTriangles(ct, 0);
+				m.RecalculateNormals();
+				m.RecalculateBounds();
+				meshes.Add(m);
+			}
+			return meshes;
 		}
 
 		internal Mesh ToMesh()

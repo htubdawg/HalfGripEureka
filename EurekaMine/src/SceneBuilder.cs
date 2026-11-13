@@ -175,50 +175,59 @@ namespace EurekaMine
 		}
 
 		/// <summary>Makes the object, renderer, collider and surface behaviour of a batch. Returns its triangle count.</summary>
+		/// <summary>Size of the cells the batches are cut into (see <see cref="Batch.ToMeshes"/>).</summary>
+		private const float Cell = 120f;
+
+		/// <summary>Makes the objects (one per cell), renderers, colliders and surface behaviour of a batch. Returns its triangle count.</summary>
 		private static int Spawn(Batch batch, Transform parent, int layer)
 		{
-			GameObject go = new GameObject(batch.Name) { layer = layer };
-			go.transform.SetParent(parent, false);
-			Mesh mesh = batch.ToMesh();
-			go.AddComponent<MeshFilter>().sharedMesh = mesh;
-			MeshRenderer mr = go.AddComponent<MeshRenderer>();
-			mr.sharedMaterial = Mats.Get(batch.Tex, batch.Tint, false, batch.Emission);
-			mr.shadowCastingMode = batch.Shadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
-			mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-			mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
-			if (batch.Collide)
+			int triangles = 0;
+			Material material = Mats.Get(batch.Tex, batch.Tint, batch.TwoSided, batch.Emission);
+			foreach (Mesh mesh in batch.ToMeshes(Cell))
 			{
-				MeshCollider mc = go.AddComponent<MeshCollider>();
-				mc.sharedMesh = mesh;
-				if (batch.Slippery)
+				GameObject go = new GameObject(batch.Name) { layer = layer };
+				go.transform.SetParent(parent, false);
+				go.AddComponent<MeshFilter>().sharedMesh = mesh;
+				MeshRenderer mr = go.AddComponent<MeshRenderer>();
+				mr.sharedMaterial = material;
+				mr.shadowCastingMode = batch.Shadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
+				mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+				mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+				if (batch.Collide)
 				{
-					mc.sharedMaterial = Frictionless;
+					MeshCollider mc = go.AddComponent<MeshCollider>();
+					mc.sharedMesh = mesh;
+					if (batch.Slippery)
+					{
+						mc.sharedMaterial = Frictionless;
+					}
 				}
-			}
-			if (batch.Wall)
-			{
-				try
+				if (batch.Wall)
 				{
-					go.tag = "Wall";
+					try
+					{
+						go.tag = "Wall";
+					}
+					catch (Exception)
+					{
+						Mod.Info("The tag Wall does not exist: walls keep the default tag.");
+					}
 				}
-				catch (Exception)
+				switch (batch.Ground)
 				{
-					Mod.Info("The tag Wall does not exist: walls keep the default tag.");
+					case Surface.Rough:
+						AddHandling(go, Mod.RoughGrip.Value, Mod.RoughDrag.Value, true);
+						break;
+					case Surface.Coal:
+						AddHandling(go, Mod.CoalGrip.Value, Mod.CoalDrag.Value, true);
+						break;
+					case Surface.Yard:
+						AddHandling(go, Mod.YardGrip.Value, Mod.YardDrag.Value, true);
+						break;
 				}
+				triangles += mesh.triangles.Length / 3;
 			}
-			switch (batch.Ground)
-			{
-				case Surface.Rough:
-					AddHandling(go, Mod.RoughGrip.Value, Mod.RoughDrag.Value, true);
-					break;
-				case Surface.Coal:
-					AddHandling(go, Mod.CoalGrip.Value, Mod.CoalDrag.Value, true);
-					break;
-				case Surface.Yard:
-					AddHandling(go, Mod.YardGrip.Value, Mod.YardDrag.Value, true);
-					break;
-			}
-			return mesh.triangles.Length / 3;
+			return triangles;
 		}
 
 		private static void AddHandling(GameObject go, float grip, float drag, bool background)
@@ -286,16 +295,16 @@ namespace EurekaMine
 				Road branch = seam && i == Route.Seam.Fork ? Route.Seam : chute && i == Route.Chute.Fork ? Route.Chute : null;
 				if (branch != null)
 				{
-					foreach (Vector3 p in branch.P)
+					for (int k = 0; k < branch.Count; k++)
 					{
-						pts.Add(p);
-						halfWidths.Add(branch.Half);
+						pts.Add(branch.P[k]);
+						halfWidths.Add(branch.HalfW[k]);
 					}
 					i = branch.Join + 1;
 					continue;
 				}
 				pts.Add(m.P[i]);
-				halfWidths.Add(m.Half);
+				halfWidths.Add(m.HalfW[i]);
 				i++;
 			}
 			return pts;

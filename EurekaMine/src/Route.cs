@@ -15,6 +15,8 @@ namespace EurekaMine
 		internal readonly int Fork, Join;
 		/// <summary>Distance along the road to each point.</summary>
 		internal readonly float[] S;
+		/// <summary>Half the road's width and the height of its roof at each point: wider and higher in the chambers.</summary>
+		internal readonly float[] HalfW, Ceil;
 
 		internal Road(string name, float[] x, float[] y, float[] z, float width, bool closed, Surface ground, int fork, int join)
 		{
@@ -26,9 +28,13 @@ namespace EurekaMine
 			Join = join;
 			P = new Vector3[x.Length];
 			S = new float[x.Length];
+			HalfW = new float[x.Length];
+			Ceil = new float[x.Length];
 			for (int i = 0; i < x.Length; i++)
 			{
 				P[i] = new Vector3(x[i], y[i], z[i]);
+				HalfW[i] = width * 0.5f;
+				Ceil[i] = Mine.Height;
 				if (i > 0)
 				{
 					S[i] = S[i - 1] + Vector3.Distance(P[i], P[i - 1]);
@@ -49,6 +55,38 @@ namespace EurekaMine
 		internal float Length
 		{
 			get { return Closed ? S[S.Length - 1] + Vector3.Distance(P[P.Length - 1], P[0]) : S[S.Length - 1]; }
+		}
+
+		internal int Wrap(int i)
+		{
+			return Closed ? ((i % P.Length) + P.Length) % P.Length : Mathf.Clamp(i, 0, P.Length - 1);
+		}
+
+		internal float HalfAt(int i)
+		{
+			return HalfW[Wrap(i)];
+		}
+
+		internal float CeilAt(int i)
+		{
+			return Ceil[Wrap(i)];
+		}
+
+		/// <summary>
+		/// Opens the road into a chamber from point a to b (wrapping on a closed road): half width and roof eased up over ease points at
+		/// each end. The layout's clearance check was made for the plain width, so chambers go only where nothing passes close.
+		/// </summary>
+		internal void Widen(int a, int b, float half, float ceil, int ease)
+		{
+			int n = b - a;
+			for (int k = -ease; k <= n + ease; k++)
+			{
+				int i = Wrap(a + k);
+				float f = k < 0 ? 1f + (float)k / ease : k > n ? 1f - (float)(k - n) / ease : 1f;
+				f = f * f * (3f - 2f * f);
+				HalfW[i] = Mathf.Max(HalfW[i], Mathf.Lerp(Half, half, f));
+				Ceil[i] = Mathf.Max(Ceil[i], Mathf.Lerp(Mine.Height, ceil, f));
+			}
 		}
 
 		internal Vector3 At(int i)
@@ -133,6 +171,8 @@ namespace EurekaMine
 			{
 				Marks[RouteData.MarkNames[i]] = RouteData.MarkIndex[i];
 			}
+			// the pit bottom: a high wide chamber round the start line, where the slope comes in (nothing passes over it)
+			Main.Widen(-12, 18, 36f, 36f, 6);
 		}
 
 		internal static int Mark(string name)
@@ -157,12 +197,12 @@ namespace EurekaMine
 				{
 					Vector3 q = r.P[i];
 					float dy = p.y - q.y;
-					if (dy < -3f || dy > Mine.Height - 2f)
+					if (dy < -3f || dy > r.Ceil[i] - 2f)
 					{
 						continue;
 					}
 					float dx = q.x - p.x, dz = q.z - p.z;
-					float h = r.Half - margin;
+					float h = r.HalfW[i] - margin;
 					if (dx * dx + dz * dz < h * h)
 					{
 						return true;

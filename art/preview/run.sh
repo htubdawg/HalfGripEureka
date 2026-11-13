@@ -9,7 +9,7 @@ OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 WORK=${TMPDIR:-/tmp}/eureka-preview
 mkdir -p "$WORK"
 [ -d "$WORK/node_modules/three" ] || (cd "$WORK" && npm init -y >/dev/null && npm install three@0.160.0 >/dev/null)
-dotnet build "$HERE/preview.csproj" -o "$WORK/bin" -v q --nologo | grep -E "rror\(s\)"
+if ! dotnet build "$HERE/preview.csproj" -o "$WORK/bin" -v q --nologo > "$WORK/build.log"; then grep -E " error " "$WORK/build.log" | sort -u; exit 1; fi
 dotnet "$WORK/bin/preview.dll" "$WORK/scene.json"
 cp "$HERE/view.html" "$HERE/shoot.js" "$WORK/"
 python3 "$HERE/shots.py" "$WORK"

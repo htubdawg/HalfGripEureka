@@ -39,7 +39,7 @@ namespace EurekaMine
 			CoalDrag = ctx.Config.Bind("Surfaces", "ChuteDrag", 1.35f, "Rolling resistance on the chute's loose coal.");
 			YardGrip = ctx.Config.Bind("Surfaces", "YardGrip", 0.92f, "Grip on the pithead yard's gravel.");
 			YardDrag = ctx.Config.Bind("Surfaces", "YardDrag", 1.15f, "Rolling resistance on the yard's gravel.");
-			Lights = ctx.Config.Bind("Mine", "Lights", 12, "Real lights moved to the mine lamps nearest the camera (the rest glow without lighting anything). Lower is cheaper.");
+			Lights = ctx.Config.Bind("Mine", "Lights", 8, "Real lights moved to the mine lamps nearest the camera (the rest glow without lighting anything). Lower is cheaper.");
 			RunawayCars = ctx.Config.Bind("Hazards", "RunawayCars", true, "Strings of loaded mine cars break loose down the plane now and then.");
 			CoalChutes = ctx.Config.Bind("Hazards", "CoalChutes", true, "Chutes over the lower gangway dump lump coal onto the road.");
 			VentDoors = ctx.Config.Bind("Hazards", "VentDoors", true, "Ventilation doors across the coal chute swing shut and open again.");

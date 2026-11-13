@@ -2,7 +2,7 @@
 
 # Eureka Mine for Half Grip
 
-**Version 0.1.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
+**Version 0.2.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
 
 A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker. The race runs into the drift mouth and
 down the slope, and every lap after that is underground. It is dealt into your runs like any other map.
@@ -62,7 +62,7 @@ In `BepInEx\config\halfgrip.eurekamine.cfg`, written the first time the game run
 | `Surfaces.OldWorkingsGrip`, `OldWorkingsDrag` | `0.85`, `1.4` | Grip and rolling resistance in the old workings |
 | `Surfaces.ChuteGrip`, `ChuteDrag` | `0.68`, `1.35` | Grip and rolling resistance on the coal chute |
 | `Surfaces.YardGrip`, `YardDrag` | `0.92`, `1.15` | Grip and rolling resistance on the yard's gravel |
-| `Mine.Lights` | `12` | Real lights moved to the lamps nearest the camera. Lower is cheaper |
+| `Mine.Lights` | `8` | Real lights moved to the lamps nearest the camera. Lower is cheaper |
 | `Hazards.RunawayCars`, `CoalChutes`, `VentDoors` | `true` | Switch each hazard on or off |
 | `Hazards.DoorBreakSpeed` | `70` | Dashboard speed that smashes a shut door |
 | `Hazards.DoorSpeedKept` | `0.85` | Share of its speed a car keeps after smashing a door |

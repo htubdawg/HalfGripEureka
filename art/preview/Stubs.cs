@@ -25,6 +25,7 @@ namespace UnityEngine
 		public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 		public static float Dot(Vector3 a, Vector3 b) => a.x * b.x + a.y * b.y + a.z * b.z;
 		public static float Distance(Vector3 a, Vector3 b) => (a - b).magnitude;
+		public static float Angle(Vector3 a, Vector3 b) { float d = Dot(a.normalized, b.normalized); d = d < -1 ? -1 : d > 1 ? 1 : d; return (float)(Math.Acos(d) * 180.0 / Math.PI); }
 		public static Vector3 Lerp(Vector3 a, Vector3 b, float t) { t = Mathf.Clamp01(t); return a + (b - a) * t; }
 	}
 	public struct Quaternion
@@ -59,14 +60,14 @@ namespace UnityEngine
 	{
 		public const float PI = (float)Math.PI, Deg2Rad = PI / 180f, Rad2Deg = 180f / PI;
 		public static float Sin(float a) => (float)Math.Sin(a); public static float Cos(float a) => (float)Math.Cos(a);
-		public static float Sqrt(float a) => (float)Math.Sqrt(a); public static float Abs(float a) => Math.Abs(a);
+		public static float Sqrt(float a) => (float)Math.Sqrt(a); public static float Abs(float a) => Math.Abs(a); public static int Abs(int a) => Math.Abs(a);
 		public static float Atan2(float y, float x) => (float)Math.Atan2(y, x);
 		public static float Clamp01(float v) => v < 0 ? 0 : v > 1 ? 1 : v;
 		public static float Clamp(float v, float a, float b) => v < a ? a : v > b ? b : v;
 		public static int Clamp(int v, int a, int b) => v < a ? a : v > b ? b : v;
 		public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
 		public static float InverseLerp(float a, float b, float v) => a == b ? 0 : Clamp01((v - a) / (b - a));
-		public static int RoundToInt(float v) => (int)Math.Round(v); public static float Max(float a, float b) => Math.Max(a, b);
+		public static int RoundToInt(float v) => (int)Math.Round(v); public static int FloorToInt(float v) => (int)Math.Floor(v); public static float Max(float a, float b) => Math.Max(a, b);
 		public static int Max(int a, int b) => Math.Max(a, b); public static float Min(float a, float b) => Math.Min(a, b);
 	}
 	public struct Color { public float r, g, b, a; public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }
@@ -86,8 +87,8 @@ namespace UnityEngine
 		public void SetTexture(string n, Texture2D t) { } public void SetColor(string n, Color c) { } public void SetFloat(string n, float f) { }
 		public void EnableKeyword(string k) { } public MaterialGlobalIlluminationFlags globalIlluminationFlags; }
 	public class Mesh : Object { public UnityEngine.Rendering.IndexFormat indexFormat;
-		public List<Vector3> V; public List<int> T;
-		public void SetVertices(List<Vector3> v) { V = v; } public void SetUVs(int c, List<Vector2> u) { } public void SetTriangles(List<int> t, int s) { T = t; }
+		public List<Vector3> V; public List<int> T; public List<Vector2> U;
+		public void SetVertices(List<Vector3> v) { V = v; } public void SetUVs(int c, List<Vector2> u) { U = u; } public void SetTriangles(List<int> t, int s) { T = t; }
 		public void RecalculateNormals() { } public void RecalculateBounds() { } }
 }
 namespace EurekaMine

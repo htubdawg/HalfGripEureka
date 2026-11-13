@@ -33,5 +33,10 @@ shots = [
     dict(name="13_chute_fork", **inside("haulage", 622, 8, 9), opts=dark),
     dict(name="14_chute", **inside("coal chute", 20, 6, 8), opts=dark),
     dict(name="15_switchback", **inside("haulage", 660, 5, 9), opts=dark),
+    dict(name="16_pit_bottom", **inside("haulage", len(R["haulage"]) - 10, 12, 10), opts=dark),
+    dict(name="17_pit_bottom_shaft", eye=[R["haulage"][10][0], R["haulage"][10][1] + 12, R["haulage"][10][2] - 10], at=[R["haulage"][4][0], R["haulage"][4][1] + 12, R["haulage"][4][2] + 40], opts=dark),
+    dict(name="18_lower_gangway", **inside("haulage", 280, 6, 9), opts=dark),
+    dict(name="19_upper_gangway", **inside("haulage", 440, 6, 9), opts=dark),
+    dict(name="20_slope_lower", **inside("slope", 120, 8, 9), opts=dark),
 ]
 json.dump(shots, open(os.path.join(work, "shots.json"), "w"))
