@@ -15,7 +15,7 @@ import os
 import sys
 
 STEP = 8.0          # spacing of the sampled points
-COVER = 32.0        # least vertical gap between two roads that cross in plan (a tunnel's height plus rock)
+COVER = 34.0        # least vertical gap between two roads that cross in plan (a 24-unit tunnel plus 10 of rock)
 SMOOTH = 72.0       # length of the moving average applied to heights (vertical curves)
 
 

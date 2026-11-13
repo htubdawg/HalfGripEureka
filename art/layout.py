@@ -81,7 +81,43 @@ def build():
 	], WIDTH["runin"])
 	runin.fork, runin.join = None, join
 	roads["runin"] = runin
+	for name in ("seam", "chute", "runin"):
+		settle(roads[name], main)
 	return roads
+
+
+def settle(branch, main):
+	"""
+	Where a branch still shares the main lap's floor (their roads overlap in plan, near its fork and join), it takes the main lap's
+	height, and it eases onto its own over the next 60 units. So the two floors are one floor until the roads part, and the rock between
+	them starts where they no longer touch.
+	"""
+	reach = (main.width + branch.width) / 2 + 4
+	for end_branch, end_main in ((0.0, branch.fork), (branch.length, branch.join)):
+		if end_main is None:
+			continue
+		# only the branch's own first or last 160 units, against the main lap's 140 units round the same end (never where it crosses the lap)
+		near = [q for q in main.P if min(abs(q[3] - end_main), main.length - abs(q[3] - end_main)) < 140]
+		for p in branch.P:
+			if abs(p[3] - end_branch) > 160:
+				continue
+			best, y = None, None
+			for q in near:
+				d = (p[0] - q[0]) ** 2 + (p[2] - q[2]) ** 2
+				if best is None or d < best:
+					best, y = d, q[1]
+			w = min(1.0, max(0.0, (math.sqrt(best) - reach) / 60.0))
+			# and never more than the distance from the end allows, so the window's edge leaves no step
+			w = max(w, min(1.0, max(0.0, (abs(p[3] - end_branch) - 100.0) / 60.0)))
+			w = w * w * (3 - 2 * w)
+			p[1] = y * (1 - w) + p[1] * w
+	# ease the climb away from the lap: a moving average over 120 units, the first and last points left on the lap's height
+	ys = [p[1] for p in branch.P]
+	half = int(60 / STEP)
+	for i in range(1, len(ys) - 1):
+		k = min(half, i, len(ys) - 1 - i)   # a symmetric window that shrinks at the ends, so they stay on the lap
+		lo, hi = i - k, i + k + 1
+		branch.P[i][1] = sum(ys[lo:hi]) / (hi - lo)
 
 
 # ---- checks ----------------------------------------------------------------------------------------------------------------
@@ -289,6 +325,64 @@ def main_run():
 		json.dump({k: dict(width=r.width, closed=r.closed, length=r.length, marks=r.marks,
 			fork=getattr(r, "fork", None), join=getattr(r, "join", None),
 			points=[[round(p[0], 2), round(p[1], 2), round(p[2], 2)] for p in r.P]) for k, r in roads.items()}, f)
+	bake(roads)
+
+
+# ---- the mod's data --------------------------------------------------------------------------------------------------------
+
+def index_at(road, s):
+	return min(range(len(road.P)), key=lambda k: abs(road.P[k][3] - s))
+
+
+def bake(roads):
+	"""Writes EurekaMine/src/RouteData.cs: every road's points with the surface yard at y 0 (the game spawns rivals at y 1)."""
+	here = os.path.dirname(os.path.abspath(__file__))
+	path = os.path.join(here, "..", "EurekaMine", "src", "RouteData.cs")
+	main = roads["main"]
+
+	def floats(name, values):
+		out = ["\t\tinternal static readonly float[] %s =" % name, "\t\t{"]
+		for i in range(0, len(values), 12):
+			out.append("\t\t\t" + ", ".join("%.2ff" % v for v in values[i:i + 12]) + ",")
+		out.append("\t\t};")
+		return out
+
+	lines = [
+		"namespace EurekaMine",
+		"{",
+		"\t/// <summary>The roads of the mine, written by <c>art/layout.py</c>. Do not edit by hand: change the layout and run it again.</summary>",
+		"\tinternal static class RouteData",
+		"\t{",
+		"\t\tinternal const float Step = %.1ff;" % STEP,
+		"\t\tinternal const float Surface = 0f;",
+	]
+	for name in ("main", "seam", "chute", "runin"):
+		r = roads[name]
+		cap = name.capitalize()
+		lines.append("")
+		lines.append("\t\tinternal const float %sWidth = %.1ff;" % (cap, r.width))
+		if name != "main":
+			fork = index_at(main, r.fork) if r.fork is not None else -1
+			lines.append("\t\t/// <summary>The main lap's point where this road leaves it (-1: none) and where it comes back.</summary>")
+			lines.append("\t\tinternal const int %sFork = %d;" % (cap, fork))
+			lines.append("\t\tinternal const int %sJoin = %d;" % (cap, index_at(main, r.join)))
+		lines += floats(cap + "X", [p[0] for p in r.P])
+		lines += floats(cap + "Y", [p[1] - SURFACE for p in r.P])
+		lines += floats(cap + "Z", [p[2] for p in r.P])
+	lines.append("")
+	lines.append("\t\t/// <summary>Named places on the main lap, as point indexes.</summary>")
+	keys = list(main.marks)
+	lines.append("\t\tinternal static readonly string[] MarkNames = { " + ", ".join('"%s"' % k for k in keys) + " };")
+	lines.append("\t\tinternal static readonly int[] MarkIndex = { " + ", ".join(str(index_at(main, main.marks[k]) % len(main.P)) for k in keys) + " };")
+	ri = roads["runin"]
+	lines.append("\t\t/// <summary>The run in's point at the drift mouth: before it is the pithead yard, after it the slope.</summary>")
+	lines.append("\t\tinternal const int RuninMouth = %d;" % index_at(ri, ri.marks["Drift mouth"]))
+	lines.append("\t}")
+	lines.append("}")
+	os.makedirs(os.path.dirname(path), exist_ok=True)
+	with open(path, "w", newline="\n") as f:
+		f.write("\n".join(lines) + "\n")
+	print("wrote", os.path.normpath(path))
 
 
 if __name__ == "__main__":
