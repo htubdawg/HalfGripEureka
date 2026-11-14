@@ -369,7 +369,7 @@ namespace EurekaMine
 
 		// ---- along the tunnels -----------------------------------------------------------------------------------------------
 
-		/// <summary>The water line low on the left wall, the power cable sagging between hooks on the right, and on the haulage the trolley wire.</summary>
+		/// <summary>The water line low on the left rib, the power cable sagging between hooks on the right (both just behind the smooth wall the cars touch), and on the haulage the trolley wire.</summary>
 		private static void Utilities(Road r, bool trolley)
 		{
 			Batch pipe = Get("water line", Tex.Steel, new Color(0.25f, 0.27f, 0.3f));
@@ -385,16 +385,16 @@ namespace EurekaMine
 				float ta = r.CeilAt(i) - (Mine.Height - Mine.WallTop), tc = r.CeilAt(i + 1) - (Mine.Height - Mine.WallTop);
 				if (SolidWall(r, i, -1f) && SolidWall(r, i + 1, -1f))
 				{
-					pipe.Cylinder(a - ra * (ha - 0.9f) + Vector3.up * 2.4f, c - rc * (hc - 0.9f) + Vector3.up * 2.4f, 0.55f, 6, 3f, false);
+					pipe.Cylinder(a - ra * (ha + 0.2f) + Vector3.up * 2.4f, c - rc * (hc + 0.2f) + Vector3.up * 2.4f, 0.55f, 6, 3f, false);
 					if (i % 3 == 0)
 					{
-						pipe.Box(a - ra * (ha - 0.5f) + Vector3.up * 2.4f, new Vector3(1.4f, 0.4f, 0.4f), Quaternion.LookRotation(r.Forward(i), Vector3.up), 1f);
+						pipe.Box(a - ra * (ha + 0.6f) + Vector3.up * 2.4f, new Vector3(1.4f, 0.4f, 0.4f), Quaternion.LookRotation(r.Forward(i), Vector3.up), 1f);
 					}
 				}
 				if (SolidWall(r, i, 1f) && SolidWall(r, i + 1, 1f))
 				{
 					// the cable hangs from a hook at every point and sags between
-					Vector3 h0 = a + ra * (ha - 0.6f) + Vector3.up * (ta - 2.5f), h1 = c + rc * (hc - 0.6f) + Vector3.up * (tc - 2.5f);
+					Vector3 h0 = a + ra * (ha + 0.25f) + Vector3.up * (ta - 2.5f), h1 = c + rc * (hc + 0.25f) + Vector3.up * (tc - 2.5f);
 					Vector3 mid = (h0 + h1) * 0.5f + Vector3.down * 0.9f;
 					cable.Cylinder(h0, mid, 0.3f, 4, 2f, false);
 					cable.Cylinder(mid, h1, 0.3f, 4, 2f, false);

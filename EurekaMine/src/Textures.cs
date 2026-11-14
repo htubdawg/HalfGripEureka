@@ -93,21 +93,30 @@ namespace EurekaMine
 			// with the black coal seam showing through in a band. The u axis runs up the wall: the walls are drawn with one tile from floor to top.
 			RibWall = Paint("rib", 64, 14, (x, y, n) =>
 			{
+				// u (x) runs up the rib, v (y) along the road. The seam's edges wander, the dust lies in blotches with bare rock between,
+				// and water has streaked it here and there.
 				float v = n.Value();
-				bool seam = x > 18 && x < 36 + (y % 7 == 0 ? 1 : 0);
-				bool parting = x == 27 || x == 28;   // a thin band of slate in the seam
-				Color dust = Color.Lerp(new Color(0.66f, 0.65f, 0.61f), new Color(0.80f, 0.79f, 0.75f), v);
-				Color coal = Color.Lerp(new Color(0.07f, 0.07f, 0.08f), new Color(0.20f, 0.20f, 0.22f), v * v);
-				if (seam)
+				float wave = Blob(y, 0, 16, 64, 31) * 6f - 3f;
+				float lo = 17f + wave, hi = 37f + Blob(y, 7, 16, 64, 32) * 5f - 2.5f;
+				float dusted = Blob(x, y, 16, 64, 33) * 0.7f + Blob(x, y, 8, 64, 34) * 0.3f;
+				Color bare = Color.Lerp(new Color(0.30f, 0.28f, 0.26f), new Color(0.42f, 0.40f, 0.37f), v);
+				Color dust = Color.Lerp(new Color(0.62f, 0.61f, 0.57f), new Color(0.80f, 0.79f, 0.74f), v);
+				Color coal = Color.Lerp(new Color(0.06f, 0.06f, 0.07f), new Color(0.20f, 0.20f, 0.23f), v * v);
+				if (x > lo && x < hi)
 				{
-					return parting ? new Color(0.30f, 0.29f, 0.28f) : (v > 0.85f ? Color.Lerp(coal, dust, 0.6f) : coal);
+					// the seam, a thin slate parting through it, dusted grey in places
+					bool parting = Mathf.Abs(x - (lo + hi) * 0.5f - 1f) < 1f;
+					Color c = parting ? new Color(0.30f, 0.29f, 0.28f) : coal;
+					return Color.Lerp(c, dust, Mathf.Clamp01(dusted - 0.55f) * 1.2f);
 				}
-				// dust thinning to bare grey rock near the floor, and streaks where water ran
-				if (x < 6)
+				Color rock = Color.Lerp(bare, dust, Edge(0.25f, 0.65f, dusted));
+				// thinning to bare near the floor, and rust-brown water streaks running down
+				rock = Color.Lerp(bare * 0.8f, rock, Mathf.Clamp01(x / 8f));
+				if (Blob(0, y, 4, 64, 35) > 0.8f && x < lo)
 				{
-					dust = Color.Lerp(new Color(0.32f, 0.30f, 0.28f), dust, x / 6f);
+					rock = Color.Lerp(rock, new Color(0.38f, 0.26f, 0.16f), 0.45f);
 				}
-				return y % 13 == 0 && v > 0.5f ? dust * 0.85f : dust;
+				return rock;
 			});
 			// the old workings: never dusted, grey rock and coal, darker
 			OldRib = Paint("oldrib", 64, 15, (x, y, n) =>
@@ -118,15 +127,21 @@ namespace EurekaMine
 					: Color.Lerp(new Color(0.28f, 0.26f, 0.24f), new Color(0.38f, 0.36f, 0.33f), v);
 			});
 			// the roof: dusted, with a roof bolt's square plate every 16 pixels
-			RoofBolts = Paint("roof", 32, 16, (x, y, n) =>
+			RoofBolts = Paint("roof", 64, 16, (x, y, n) =>
 			{
-				Color dust = Color.Lerp(new Color(0.58f, 0.57f, 0.54f), new Color(0.70f, 0.69f, 0.65f), n.Value());
+				// the roof: dusted unevenly, slabs outlined where it has cracked, a bolt's plate every 16 pixels
+				float dusted = Blob(x, y, 16, 64, 41);
+				Color c = Color.Lerp(new Color(0.34f, 0.33f, 0.31f), new Color(0.66f, 0.65f, 0.61f), Edge(0.2f, 0.7f, dusted)) * (0.92f + n.Value() * 0.12f);
+				if (Blob(x, y, 8, 64, 42) > 0.47f && Blob(x, y, 8, 64, 42) < 0.5f)
+				{
+					c *= 0.6f;
+				}
 				int bx = x % 16, by = y % 16;
 				if (bx >= 6 && bx <= 9 && by >= 6 && by <= 9)
 				{
 					return bx == 7 && by == 7 || bx == 8 && by == 8 ? new Color(0.2f, 0.2f, 0.22f) : new Color(0.42f, 0.40f, 0.38f);
 				}
-				return dust;
+				return c;
 			});
 			MineFloor = Paint("floor", 32, 17, (x, y, n) =>
 			{
@@ -156,6 +171,27 @@ namespace EurekaMine
 				return joint ? c * 0.7f : c;
 			});
 			Belt = Paint("belt", 16, 22, (x, y, n) => Color.Lerp(new Color(0.06f, 0.06f, 0.06f), new Color(0.14f, 0.14f, 0.14f), n.Value()));
+		}
+
+		/// <summary>0 below a, 1 above b, a smooth step between (Unity's Mathf.SmoothStep interpolates instead).</summary>
+		private static float Edge(float a, float b, float x)
+		{
+			float t = Mathf.Clamp01((x - a) / (b - a));
+			return t * t * (3f - 2f * t);
+		}
+
+		/// <summary>Smooth noise over a tiling texture of the given size: lattice cells of the given size, wrapped so the edges meet.</summary>
+		private static float Blob(int x, int y, int cell, int size, int seed)
+		{
+			int cells = size / cell;
+			float fx = (float)x / cell, fy = (float)y / cell;
+			int x0 = Mathf.FloorToInt(fx), y0 = Mathf.FloorToInt(fy);
+			float tx = fx - x0, ty = fy - y0;
+			tx = tx * tx * (3f - 2f * tx);
+			ty = ty * ty * (3f - 2f * ty);
+			float a = Mine.Hash(x0 % cells, y0 % cells, 0, seed), b = Mine.Hash((x0 + 1) % cells, y0 % cells, 0, seed);
+			float c = Mine.Hash(x0 % cells, (y0 + 1) % cells, 0, seed), d = Mine.Hash((x0 + 1) % cells, (y0 + 1) % cells, 0, seed);
+			return Mathf.Lerp(Mathf.Lerp(a, b, tx), Mathf.Lerp(c, d, tx), ty);
 		}
 
 		private delegate Color Painter(int x, int y, Noise n);

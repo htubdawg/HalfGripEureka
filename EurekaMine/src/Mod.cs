@@ -20,7 +20,7 @@ namespace EurekaMine
 		internal static ConfigEntry<float> RoughGrip, RoughDrag, CoalGrip, CoalDrag, YardGrip, YardDrag;
 		internal static ConfigEntry<int> Lights;
 		internal static ConfigEntry<bool> RunawayCars, CoalChutes, VentDoors;
-		internal static ConfigEntry<float> DoorBreakSpeed, DoorSpeedKept;
+		internal static ConfigEntry<float> DoorSpeedKept;
 		internal static ConfigEntry<bool> ShowPath, VerboseLog;
 
 		/// <summary>The map entry the mod adds to the run config, once it exists.</summary>
@@ -43,8 +43,7 @@ namespace EurekaMine
 			RunawayCars = ctx.Config.Bind("Hazards", "RunawayCars", true, "Strings of loaded mine cars break loose down the plane now and then.");
 			CoalChutes = ctx.Config.Bind("Hazards", "CoalChutes", true, "Chutes over the lower gangway dump lump coal onto the road.");
 			VentDoors = ctx.Config.Bind("Hazards", "VentDoors", true, "Ventilation doors across the coal chute swing shut and open again.");
-			DoorBreakSpeed = ctx.Config.Bind("Hazards", "DoorBreakSpeed", 70f, "Dashboard speed from which a car smashes through a shut ventilation door. Slower, the door holds.");
-			DoorSpeedKept = ctx.Config.Bind("Hazards", "DoorSpeedKept", 0.85f, "Share of its speed a car keeps after smashing a door.");
+			DoorSpeedKept = ctx.Config.Bind("Hazards", "DoorSpeedKept", 0.8f, "Share of its speed a car keeps after bursting through a shut ventilation door (the doors are never solid).");
 			ShowPath = ctx.Config.Bind("Debug", "ShowPath", false, "Draw the lap counter's line and the bots' paths.");
 			VerboseLog = ctx.Config.Bind("Debug", "VerboseLog", false, "Write the detailed build log.");
 

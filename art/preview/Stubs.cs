@@ -66,6 +66,7 @@ namespace UnityEngine
 		public static float Clamp(float v, float a, float b) => v < a ? a : v > b ? b : v;
 		public static int Clamp(int v, int a, int b) => v < a ? a : v > b ? b : v;
 		public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
+		public static float SmoothStep(float from, float to, float t) { t = Clamp01(t); t = t * t * (3 - 2 * t); return from + (to - from) * t; }
 		public static float InverseLerp(float a, float b, float v) => a == b ? 0 : Clamp01((v - a) / (b - a));
 		public static int RoundToInt(float v) => (int)Math.Round(v); public static int FloorToInt(float v) => (int)Math.Floor(v); public static float Max(float a, float b) => Math.Max(a, b);
 		public static int Max(int a, int b) => Math.Max(a, b); public static float Min(float a, float b) => Math.Min(a, b);
@@ -95,4 +96,5 @@ namespace EurekaMine
 {
 	internal sealed class Label { public UnityEngine.Vector3 Pos; public UnityEngine.Vector3 Facing; public string Text; public UnityEngine.Color Color; public UnityEngine.Vector2 Size; }
 	internal static class SceneBuilder { internal static readonly List<Label> Labels = new List<Label>(); }
+	internal static class Mod { internal static void Info(string s) { System.Console.WriteLine(s); } }
 }

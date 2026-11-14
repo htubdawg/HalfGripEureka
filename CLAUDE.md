@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.2.0 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.3.0 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -71,6 +71,9 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
 - **Lights:** the renderer gives each object only a few lights, so every batch is cut into 120-unit cells (`Batch.ToMeshes`) and
   the lamp pool's lights are `Auto`, never `ForcePixel` (0.1.0 had one mesh per batch across the whole mine and Important lamp
   lights: the headlights lit nothing). Keep both.
+- **Nothing visible stands in the road unless it is solid and meant to be:** the cars touch invisible smooth guard walls and roof at
+  the road's edge (straight across every side passage, so nothing snags, bots included); the rock, posts, pipes, cables and rubble
+  are drawn just behind that line. Hazard doors are never solid (owner's call after 0.2.0).
 - Don't invent an `ObjectiveKind`. Never change `MapEntry.MapName` (saves find the map by it).
 
 ## Checking changes
@@ -95,6 +98,18 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.3.0** (owner's test of 0.2.0: a door that only broke after the car hit it, runaway cars off the rails that vanished, phasing
+  through the timber posts, bots stuck in the side passages, and "a highway tunnel, not a coal mine"): the roof lowered to 18 (wall
+  top 12); ribs and roof built rough from noise, drawn only, with invisible smooth guard walls and roof for the cars (`Mine.Section`,
+  `guard walls`/`guard roof` batches) that run straight across the passages; posts set into the ribs flush with the guard; stretches
+  that change every ~220 units between timbered (sets close, header boards), bolted (steel straps) and both; bare bulbs on a sagging
+  wire at uneven spacing, some dead, instead of even fittings; patchy rock dust with a wavy seam, water streaks, cracked roof slabs;
+  rubble against the ribs and coal spill along the floor's edges everywhere; dust in the air underground (a particle system using the
+  scene's ash material). Ventilation doors: never solid, burst through at any speed for `DoorSpeedKept`, planks fly, a red/green lamp
+  shows their state. Runaway cars: from a heading at the plane's head (forced `Niche`, Kind 400) out on rails, down the haulage's
+  track, into a heading at its foot (Kind 401) braking to a bumper; reset only when unseen and the player is 180+ away. Checked:
+  compiles with no warnings; preview pictures (the runaway cars and the dust are not in the preview).
 
 - **0.2.0** (owner's first test of 0.1.0: too dark, the headlights lit nothing, and the tunnels were bare): meshes cut into cells and
   the lamp lights no longer Important (see Rules); a fixed warm ambient underground; rock-dusted walls with the coal seam band, bolted

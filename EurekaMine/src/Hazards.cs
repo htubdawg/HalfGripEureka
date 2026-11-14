@@ -69,108 +69,219 @@ namespace EurekaMine
 	}
 
 	/// <summary>
-	/// A string of three loaded mine cars breaks loose at the head of the plane and runs down it in one lane, faster and faster, then off
-	/// into a side heading at the foot. One goes every 14 to 22 seconds while the player is anywhere near the plane; the lane changes each
-	/// time. The cars are kinematic: they shove what they meet and are not stopped by it.
+	/// A string of three loaded mine cars stands in a heading off the head of the plane. Now and then (every 14 to 22 seconds while the
+	/// player is near) it breaks loose: it rolls out on its rails, swings onto the haulage's track down the middle of the plane, runs
+	/// down faster and faster, and at the foot turns off into the other heading and brakes hard against the bumper. It is put back in
+	/// the top heading only when no camera can see it and the player is well away. The cars are kinematic: they shove what they meet.
+	/// (0.2.0 ran them in a lane beside the rails and made them vanish at the foot.)
 	/// </summary>
 	internal sealed class RunawayCars : MonoBehaviour
 	{
+		private const float Spacing = 11f;
 		private readonly List<Rigidbody> cars = new List<Rigidbody>();
+		private readonly List<Renderer> renderers = new List<Renderer>();
+		private readonly List<Vector3> path = new List<Vector3>();
+		private readonly List<float> along = new List<float>();
 		private TrackManager tm;
-		private int head, foot;
 		private float wait = 6f;
-		private bool running;
-		private float travelled;
-		private float speed;
-		private float lane;
+		private int state;   // 0 parked at the top, 1 running, 2 stopped at the bumper
+		private float travelled, speed;
 		private int runs;
+		private Vector3 top, bottom;
 
 		internal void Setup(TrackManager track, Mesh body, Mesh load, Material bodyMat, Material loadMat, int layer)
 		{
 			tm = track;
-			head = Route.Mark("Plane head") - 4;
-			foot = Route.Mark("Plane foot") + 6;
+			BuildPath();
+			Batch steel = new Batch("runaway rails", Tex.Steel, new Color(0.6f, 0.6f, 0.62f));
+			Batch wood = new Batch("runaway ties", Tex.Timber, new Color(0.6f, 0.5f, 0.42f));
+			LayRails(steel, wood);
+			foreach (Batch b in new[] { steel, wood })
+			{
+				GameObject go = new GameObject(b.Name) { layer = layer };
+				go.transform.SetParent(transform, false);
+				go.AddComponent<MeshFilter>().sharedMesh = b.ToMesh();
+				go.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get(b.Tex, b.Tint, false, Color.black);
+			}
 			for (int k = 0; k < 3; k++)
 			{
 				GameObject go = new GameObject("mine car " + k) { layer = layer };
 				go.transform.SetParent(transform, false);
 				go.AddComponent<MeshFilter>().sharedMesh = body;
-				go.AddComponent<MeshRenderer>().sharedMaterial = bodyMat;
-				GameObject top = new GameObject("load") { layer = layer };
-				top.transform.SetParent(go.transform, false);
-				top.AddComponent<MeshFilter>().sharedMesh = load;
-				top.AddComponent<MeshRenderer>().sharedMaterial = loadMat;
+				renderers.Add(go.AddComponent<MeshRenderer>());
+				renderers[renderers.Count - 1].sharedMaterial = bodyMat;
+				GameObject topLoad = new GameObject("load") { layer = layer };
+				topLoad.transform.SetParent(go.transform, false);
+				topLoad.AddComponent<MeshFilter>().sharedMesh = load;
+				renderers.Add(topLoad.AddComponent<MeshRenderer>());
+				renderers[renderers.Count - 1].sharedMaterial = loadMat;
 				BoxCollider box = go.AddComponent<BoxCollider>();
 				box.center = new Vector3(0f, 3.8f, 0f);
 				box.size = new Vector3(6.5f, 6.4f, 9.6f);
 				Rigidbody rb = go.AddComponent<Rigidbody>();
 				rb.isKinematic = true;
 				rb.interpolation = RigidbodyInterpolation.Interpolate;
-				go.SetActive(false);
 				cars.Add(rb);
 			}
+			Park();
+		}
+
+		/// <summary>
+		/// The cars' way: from the back of the top heading out to its mouth, a curve onto the middle of the plane, down it, a curve into
+		/// the bottom heading and on to its bumper. Without the headings (no room), straight down the plane's middle.
+		/// </summary>
+		private void BuildPath()
+		{
+			Road r = Route.Main;
+			Mine.Niche head = Mine.Niches.Find(nc => nc.Road == r && nc.Kind == 400);
+			Mine.Niche foot = Mine.Niches.Find(nc => nc.Road == r && nc.Kind == 401);
+			int k0 = head != null ? head.I + head.Span + 4 : Route.Mark("Plane head") - 2;
+			int k1 = foot != null ? foot.I - 4 : Route.Mark("Plane foot") + 4;
+			if (head != null)
+			{
+				Vector3 back = head.Mouth + head.Out * (head.Depth - 4f);
+				Add(back);
+				Add(head.Mouth);
+				Curve(head.Mouth, head.Mouth - head.Out * 14f, r.At(k0) - r.Forward(k0) * 16f, r.At(k0));
+			}
+			for (int k = k0; k <= k1; k++)
+			{
+				Add(r.At(k));
+			}
+			if (foot != null)
+			{
+				Curve(r.At(k1), r.At(k1) + r.Forward(k1) * 16f, foot.Mouth - foot.Out * 14f, foot.Mouth);
+				Add(foot.Mouth + foot.Out * (foot.Depth - 4f));
+			}
+			top = path[0];
+			bottom = path[path.Count - 1];
+		}
+
+		private void Add(Vector3 p)
+		{
+			if (path.Count > 0 && Vector3.Distance(path[path.Count - 1], p) < 0.5f)
+			{
+				return;
+			}
+			along.Add(path.Count == 0 ? 0f : along[along.Count - 1] + Vector3.Distance(path[path.Count - 1], p));
+			path.Add(p);
+		}
+
+		private void Curve(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
+		{
+			for (int k = 1; k <= 12; k++)
+			{
+				float t = k / 12f, u = 1f - t;
+				Add(p0 * (u * u * u) + p1 * (3f * u * u * t) + p2 * (3f * u * t * t) + p3 * (t * t * t));
+			}
+		}
+
+		/// <summary>Rails where the cars leave the haulage's own track: in the headings and on the curves, and a bumper at each end.</summary>
+		private void LayRails(Batch steel, Batch wood)
+		{
+			Road r = Route.Main;
+			for (int k = 0; k < path.Count - 1; k++)
+			{
+				Vector3 a = path[k], c = path[k + 1];
+				int near = r.NearestFlat(a, out float off);
+				bool onHaulage = off < 1f && Mathf.Abs(a.y - r.P[near].y) < 2f;
+				if (onHaulage)
+				{
+					continue;
+				}
+				Vector3 dir = (c - a).normalized, side = Vector3.Cross(Vector3.up, dir).normalized;
+				Quaternion q = Quaternion.LookRotation(dir, Vector3.up);
+				foreach (float s in new[] { -3.2f, 3.2f })
+				{
+					steel.Box((a + c) * 0.5f + side * s + Vector3.up * 0.25f, new Vector3(0.5f, 0.4f, Vector3.Distance(a, c) + 0.3f), q, 4f);
+				}
+				wood.Box(a + Vector3.up * 0.08f, new Vector3(9f, 0.2f, 1.1f), q, 4f);
+			}
+			foreach (Vector3[] end in new[] { new[] { path[0], path[0] - path[1] }, new[] { path[path.Count - 1], path[path.Count - 1] - path[path.Count - 2] } })
+			{
+				Vector3 dir = end[1].normalized;
+				Quaternion q = Quaternion.LookRotation(dir, Vector3.up);
+				wood.Box(end[0] + dir * 6f + Vector3.up * 1.6f, new Vector3(9f, 3.2f, 2f), q, 3f);
+				steel.Box(end[0] + dir * 5f + Vector3.up * 2.4f, new Vector3(7f, 0.8f, 0.8f), q, 2f);
+			}
+		}
+
+		private void Park()
+		{
+			state = 0;
+			travelled = 2f * Spacing + 1f;
+			speed = 0f;
+			PlaceAll();
 		}
 
 		private void FixedUpdate()
 		{
-			if (tm == null || !tm.raceStarted)
+			if (tm == null || !tm.raceStarted || path.Count < 2)
 			{
 				return;
 			}
-			Road r = Route.Main;
-			if (!running)
+			Vector3 player = tm.playerCarController != null ? tm.playerCarController.transform.position : Vector3.zero;
+			float length = along[along.Count - 1];
+			if (state == 0)
 			{
-				Vector3 player = tm.playerCarController != null ? tm.playerCarController.transform.position : Vector3.zero;
-				bool near = (player - r.At((head + foot) / 2)).sqrMagnitude < 700f * 700f;
+				bool near = (player - top).sqrMagnitude < 700f * 700f;
 				wait -= near ? Time.fixedDeltaTime : 0f;
 				if (wait <= 0f)
 				{
-					running = true;
-					travelled = 0f;
-					speed = 8f;
-					lane = (runs % 2 == 0 ? 1f : -1f) * r.Half * 0.45f;
+					state = 1;
+					speed = 4f;
 					runs++;
-					foreach (Rigidbody c in cars)
-					{
-						c.gameObject.SetActive(true);
-					}
 				}
 				return;
 			}
-			speed = Mathf.Min(48f, speed + 9f * Time.fixedDeltaTime);
-			travelled += speed * Time.fixedDeltaTime;
-			float length = r.S[foot] - r.S[head];
-			for (int k = 0; k < cars.Count; k++)
+			if (state == 1)
 			{
-				float s = travelled - k * 11f;
-				Place(cars[k], Mathf.Clamp(s, 0f, length));
-			}
-			if (travelled - 2f * 11f > length)
-			{
-				running = false;
-				wait = 14f + (runs * 5) % 9;
-				foreach (Rigidbody c in cars)
+				// faster and faster down the plane, braking hard into the bottom heading so it stops at the bumper
+				speed = Mathf.Min(48f, speed + 9f * Time.fixedDeltaTime);
+				speed = Mathf.Min(speed, Mathf.Sqrt(2f * 30f * Mathf.Max(0f, length - travelled)) + 0.5f);
+				travelled = Mathf.Min(length, travelled + speed * Time.fixedDeltaTime);
+				PlaceAll();
+				if (travelled >= length - 0.01f)
 				{
-					c.gameObject.SetActive(false);
+					state = 2;
 				}
+				return;
+			}
+			// stopped: back to the top once nobody can see either end and the player is well away
+			bool seen = false;
+			foreach (Renderer rd in renderers)
+			{
+				seen |= rd.isVisible;
+			}
+			if (!seen && (player - bottom).sqrMagnitude > 180f * 180f && (player - top).sqrMagnitude > 180f * 180f)
+			{
+				Park();
+				wait = 14f + (runs * 5) % 9;
 			}
 		}
 
-		/// <summary>Puts a car s units down the plane from its head, in this run's lane.</summary>
+		private void PlaceAll()
+		{
+			for (int k = 0; k < cars.Count; k++)
+			{
+				Place(cars[k], Mathf.Max(0f, travelled - k * Spacing));
+			}
+		}
+
+		/// <summary>Puts a car s units along the path, facing along it.</summary>
 		private void Place(Rigidbody car, float s)
 		{
-			Road r = Route.Main;
-			int i = head;
-			while (i < foot && r.S[i + 1] - r.S[head] < s)
+			int i = 0;
+			while (i < along.Count - 2 && along[i + 1] < s)
 			{
 				i++;
 			}
-			float seg = r.S[i + 1] - r.S[i];
-			float t = seg > 0f ? Mathf.Clamp01((s - (r.S[i] - r.S[head])) / seg) : 0f;
-			Vector3 p = Vector3.Lerp(r.P[i], r.P[i + 1], t) + r.Right(i) * lane;
-			Vector3 dir = (r.P[i + 1] - r.P[i]).normalized;
+			float seg = along[i + 1] - along[i];
+			float t = seg > 0f ? Mathf.Clamp01((s - along[i]) / seg) : 0f;
+			Vector3 p = Vector3.Lerp(path[i], path[i + 1], t);
+			Vector3 dir = path[i + 1] - path[i];
 			car.MovePosition(p + Vector3.up * 0.2f);
-			car.MoveRotation(Quaternion.LookRotation(dir, Vector3.up));
+			car.MoveRotation(Quaternion.LookRotation(dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.forward, Vector3.up));
 		}
 	}
 
@@ -278,16 +389,18 @@ namespace EurekaMine
 	}
 
 	/// <summary>
-	/// Two pairs of timber ventilation doors across the coal chute. They swing shut and open again on a cycle (open 3.2 s, shut 2.2 s).
-	/// A car that meets a shut door fast enough smashes through it and keeps most of its speed; slower, the door holds. A smashed door is
-	/// back up twelve seconds later.
+	/// Two pairs of timber ventilation doors across the coal chute. They swing shut and open again on a cycle (open 3.2 s, shut 2.2 s),
+	/// with a lamp over each pair, green while open and red while shut or shutting, so the state reads from far off. They are never
+	/// solid: a car that meets a shut door bursts through it, planks flying, and loses a share of its speed (DoorSpeedKept). A smashed
+	/// pair is back up twelve seconds later. (0.2.0 held a car under a set speed, and its sensor was too short to act before a fast car
+	/// arrived: cars hit a solid door that then broke.)
 	/// </summary>
 	internal sealed class VentDoors : MonoBehaviour
 	{
 		private sealed class Door
 		{
-			public Transform Left, Right;
-			public Collider[] Solid;
+			public Transform Left, Right, Frame;
+			public GameObject Red, Green;
 			public float Phase;
 			public float BrokenUntil;
 			public float Shut;
@@ -295,10 +408,16 @@ namespace EurekaMine
 
 		private const float Open = 3.2f, Swing = 0.6f, Closed = 2.2f;
 		private readonly List<Door> doors = new List<Door>();
+		private readonly Queue<KeyValuePair<float, GameObject>> planks = new Queue<KeyValuePair<float, GameObject>>();
+		private Mesh plankMesh;
+		private Material plankMat;
+		private int layer;
 
-		internal void Setup(int layer)
+		internal void Setup(int lay)
 		{
+			layer = lay;
 			Road r = Route.Chute;
+			float high = Mine.Height - 1.5f;
 			foreach (float f in new[] { 0.3f, 0.62f })
 			{
 				int i = Mathf.RoundToInt((r.Count - 1) * f);
@@ -307,48 +426,62 @@ namespace EurekaMine
 				GameObject frame = new GameObject("door frame") { layer = layer };
 				frame.transform.SetParent(transform, false);
 				frame.transform.SetPositionAndRotation(p, turn);
-				float w = r.Half;
-				Door d = new Door { Phase = f * 3.1f };
-				List<Collider> solid = new List<Collider>();
+				float w = r.HalfAt(i);
+				Door d = new Door { Phase = f * 3.1f, Frame = frame.transform };
+				// the frame: a header beam and two posts, standing in against the ribs
+				Batch beams = new Batch("door frame", Tex.Timber, new Color(0.8f, 0.72f, 0.62f));
+				beams.Box(new Vector3(0f, high + 0.6f, 0f), new Vector3(2f * w + 3f, 1.4f, 1.6f), Quaternion.identity, 4f);
+				beams.Box(new Vector3(-w - 0.8f, high * 0.5f, 0f), new Vector3(1.6f, high + 1f, 1.6f), Quaternion.identity, 4f);
+				beams.Box(new Vector3(w + 0.8f, high * 0.5f, 0f), new Vector3(1.6f, high + 1f, 1.6f), Quaternion.identity, 4f);
+				AddMesh(frame.transform, "beams", beams, Vector3.zero);
 				foreach (float side in new[] { -1f, 1f })
 				{
 					float dir = -side;
-					Batch planks = new Batch("vent door", Tex.Boards, new Color(0.85f, 0.8f, 0.72f));
-					planks.Box(new Vector3(dir * w * 0.5f, Mine.WallTop * 0.5f, 0f), new Vector3(w, Mine.WallTop, 0.9f), Quaternion.identity, 4f);
-					planks.Box(new Vector3(dir * w * 0.5f, Mine.WallTop * 0.3f, -0.6f), new Vector3(w - 1f, 0.9f, 0.4f), Quaternion.identity, 4f);
-					planks.Box(new Vector3(dir * w * 0.5f, Mine.WallTop * 0.75f, -0.6f), new Vector3(w - 1f, 0.9f, 0.4f), Quaternion.identity, 4f);
-					GameObject hinge = new GameObject(side < 0f ? "left" : "right") { layer = layer };
-					hinge.transform.SetParent(frame.transform, false);
-					hinge.transform.localPosition = new Vector3(side * w, 0f, 0f);
-					hinge.AddComponent<MeshFilter>().sharedMesh = planks.ToMesh();
-					hinge.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get(planks.Tex, planks.Tint, false, Color.black);
-					BoxCollider box = hinge.AddComponent<BoxCollider>();
-					box.center = new Vector3(dir * w * 0.5f, Mine.WallTop * 0.5f, 0f);
-					box.size = new Vector3(w, Mine.WallTop, 1.4f);
-					Rigidbody rb = hinge.AddComponent<Rigidbody>();
-					rb.isKinematic = true;
-					solid.Add(box);
+					Batch boards = new Batch("vent door", Tex.Boards, new Color(0.85f, 0.8f, 0.72f));
+					boards.Box(new Vector3(dir * w * 0.5f, high * 0.5f, 0f), new Vector3(w, high, 0.9f), Quaternion.identity, 4f);
+					boards.Box(new Vector3(dir * w * 0.5f, high * 0.3f, -0.6f), new Vector3(w - 1f, 0.9f, 0.4f), Quaternion.identity, 4f);
+					boards.Box(new Vector3(dir * w * 0.5f, high * 0.75f, -0.6f), new Vector3(w - 1f, 0.9f, 0.4f), Quaternion.identity, 4f);
+					Transform hinge = AddMesh(frame.transform, side < 0f ? "left" : "right", boards, new Vector3(side * w, 0f, 0f));
 					if (side < 0f)
 					{
-						d.Left = hinge.transform;
+						d.Left = hinge;
 					}
 					else
 					{
-						d.Right = hinge.transform;
+						d.Right = hinge;
 					}
 				}
-				d.Solid = solid.ToArray();
-				// the sensor: a box a little deeper than the door each side, that smashes it ahead of a fast car
-				// on Ignore Raycast: the cars find the ground with rays that would otherwise stop on it
+				// the lamp over the doors, facing the cars coming down the chute
+				Batch red = new Batch("door lamp red", Tex.Plain, new Color(1f, 0.15f, 0.08f)) { Emission = new Color(2.5f, 0.3f, 0.15f) };
+				red.Box(Vector3.zero, new Vector3(2.4f, 1.6f, 0.6f), Quaternion.identity, 1f);
+				Batch green = new Batch("door lamp green", Tex.Plain, new Color(0.15f, 1f, 0.3f)) { Emission = new Color(0.3f, 2.5f, 0.5f) };
+				green.Box(Vector3.zero, new Vector3(2.4f, 1.6f, 0.6f), Quaternion.identity, 1f);
+				d.Red = AddMesh(frame.transform, "red", red, new Vector3(0f, high - 1.6f, -1.2f)).gameObject;
+				d.Green = AddMesh(frame.transform, "green", green, new Vector3(0f, high - 1.6f, -1.2f)).gameObject;
+				// the sensor: the doorway itself, on Ignore Raycast (the cars find the ground with rays that would otherwise stop on it)
 				GameObject sensor = new GameObject("door sensor") { layer = 2 };
 				sensor.transform.SetParent(frame.transform, false);
 				BoxCollider zone = sensor.AddComponent<BoxCollider>();
 				zone.isTrigger = true;
-				zone.center = new Vector3(0f, Mine.WallTop * 0.5f, 0f);
-				zone.size = new Vector3(2f * w, Mine.WallTop, 12f);
+				zone.center = new Vector3(0f, high * 0.5f, 0f);
+				zone.size = new Vector3(2f * w, high, 5f);
 				sensor.AddComponent<DoorSensor>().Setup(this, doors.Count);
 				doors.Add(d);
 			}
+			Batch plank = new Batch("plank", Tex.Boards, new Color(0.85f, 0.8f, 0.72f));
+			plank.Box(Vector3.zero, new Vector3(1f, 0.4f, 6f), Quaternion.identity, 3f);
+			plankMesh = plank.ToMesh();
+			plankMat = Mats.Get(plank.Tex, plank.Tint, false, Color.black);
+		}
+
+		private Transform AddMesh(Transform parent, string name, Batch batch, Vector3 at)
+		{
+			GameObject go = new GameObject(name) { layer = layer };
+			go.transform.SetParent(parent, false);
+			go.transform.localPosition = at;
+			go.AddComponent<MeshFilter>().sharedMesh = batch.ToMesh();
+			go.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get(batch.Tex, batch.Tint, false, batch.Emission);
+			return go.transform;
 		}
 
 		/// <summary>How shut a door is now: 0 open, 1 shut.</summary>
@@ -373,27 +506,37 @@ namespace EurekaMine
 
 		private void FixedUpdate()
 		{
+			while (planks.Count > 0 && planks.Peek().Key < Time.time)
+			{
+				GameObject old = planks.Dequeue().Value;
+				if (old != null)
+				{
+					Destroy(old);
+				}
+			}
 			foreach (Door d in doors)
 			{
 				bool broken = Time.time < d.BrokenUntil;
-				d.Shut = broken ? 0f : Shutness(Time.time + d.Phase);
+				float t = Time.time + d.Phase;
+				d.Shut = broken ? 0f : Shutness(t);
 				float angle = Mathf.Lerp(88f, 0f, Mathf.SmoothStep(0f, 1f, d.Shut));
 				d.Left.gameObject.SetActive(!broken);
 				d.Right.gameObject.SetActive(!broken);
 				d.Left.localRotation = Quaternion.Euler(0f, angle, 0f);
 				d.Right.localRotation = Quaternion.Euler(0f, -angle, 0f);
+				// red from a moment before they start to swing until they are open again
+				float cycle = Open + Swing + Closed + Swing;
+				bool warn = !broken && ((t % cycle) > Open - 0.8f);
+				d.Red.SetActive(warn);
+				d.Green.SetActive(!warn);
 			}
 		}
 
-		/// <summary>A car is at a door: smash it if it is shut (or shutting) and the car is fast enough.</summary>
+		/// <summary>A car is in a doorway: if the doors are shut (or shutting) it bursts through them.</summary>
 		internal void Meet(int index, Collider other)
 		{
 			Door d = doors[index];
-			if (Time.time < d.BrokenUntil || d.Shut < 0.25f || !Hazards.Car(other, out Rigidbody body, out float dash))
-			{
-				return;
-			}
-			if (dash < Mod.DoorBreakSpeed.Value)
+			if (Time.time < d.BrokenUntil || d.Shut < 0.35f || !Hazards.Car(other, out Rigidbody body, out float dash))
 			{
 				return;
 			}
@@ -401,7 +544,24 @@ namespace EurekaMine
 			d.Left.gameObject.SetActive(false);
 			d.Right.gameObject.SetActive(false);
 			body.linearVelocity *= Mod.DoorSpeedKept.Value;
-			Mod.Info(body.name + " smashed a ventilation door at " + dash.ToString("0"));
+			// the planks go flying ahead of the car
+			Vector3 v = body.linearVelocity;
+			for (int k = 0; k < 8; k++)
+			{
+				GameObject go = new GameObject("plank") { layer = layer };
+				go.transform.SetParent(transform, false);
+				go.transform.position = d.Frame.position + d.Frame.right * Random.Range(-8f, 8f) + Vector3.up * Random.Range(2f, 12f);
+				go.transform.rotation = Random.rotation;
+				go.AddComponent<MeshFilter>().sharedMesh = plankMesh;
+				go.AddComponent<MeshRenderer>().sharedMaterial = plankMat;
+				go.AddComponent<BoxCollider>();
+				Rigidbody rb = go.AddComponent<Rigidbody>();
+				rb.mass = 2f;
+				rb.linearVelocity = v * Random.Range(0.6f, 1.1f) + Random.insideUnitSphere * 6f;
+				rb.angularVelocity = Random.insideUnitSphere * 8f;
+				planks.Enqueue(new KeyValuePair<float, GameObject>(Time.time + 6f, go));
+			}
+			Mod.Info(body.name + " burst through a ventilation door at " + dash.ToString("0"));
 		}
 	}
 

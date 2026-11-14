@@ -187,12 +187,15 @@ namespace EurekaMine
 			{
 				GameObject go = new GameObject(batch.Name) { layer = layer };
 				go.transform.SetParent(parent, false);
-				go.AddComponent<MeshFilter>().sharedMesh = mesh;
-				MeshRenderer mr = go.AddComponent<MeshRenderer>();
-				mr.sharedMaterial = material;
-				mr.shadowCastingMode = batch.Shadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
-				mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-				mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+				if (!batch.Invisible)
+				{
+					go.AddComponent<MeshFilter>().sharedMesh = mesh;
+					MeshRenderer mr = go.AddComponent<MeshRenderer>();
+					mr.sharedMaterial = material;
+					mr.shadowCastingMode = batch.Shadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
+					mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+					mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+				}
 				if (batch.Collide)
 				{
 					MeshCollider mc = go.AddComponent<MeshCollider>();

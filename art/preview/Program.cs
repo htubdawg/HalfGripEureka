@@ -25,7 +25,7 @@ internal static class Program
 		foreach (var kv in b)
 		{
 			Mesh m = kv.Value.ToMesh();
-			if (m.T.Count == 0) continue;
+			if (m.T.Count == 0 || kv.Value.Invisible) continue;
 			tris += m.T.Count / 3;
 			// the texture's average colour times the tint
 			Color avg = new Color(0, 0, 0);

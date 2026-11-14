@@ -22,9 +22,68 @@ namespace EurekaMine
 		private float ambientIntensity, fogStart, fogEnd;
 		private bool fogOn;
 
+		private ParticleSystem dust;
+
+		/// <summary>
+		/// Coal dust hanging in the air round the camera underground: faint specks drifting slowly, made with the material of one of the
+		/// scene's own particle systems (the Stadium's ash), so it renders the way the game's particles do.
+		/// </summary>
+		private void MakeDust()
+		{
+			Material source = null;
+			foreach (ParticleSystemRenderer pr in Resources.FindObjectsOfTypeAll<ParticleSystemRenderer>())
+			{
+				if (pr != null && pr.sharedMaterial != null && pr.sharedMaterial.shader != null && pr.sharedMaterial.shader.name.Contains("Particles"))
+				{
+					source = pr.sharedMaterial;
+					break;
+				}
+			}
+			if (source == null)
+			{
+				Mod.Info("No particle material in the scene: no dust in the air");
+				return;
+			}
+			GameObject go = new GameObject("coal dust");
+			go.transform.SetParent(transform, false);
+			dust = go.AddComponent<ParticleSystem>();
+			dust.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+			ParticleSystem.MainModule main = dust.main;
+			main.loop = true;
+			main.startLifetime = new ParticleSystem.MinMaxCurve(5f, 9f);
+			main.startSpeed = new ParticleSystem.MinMaxCurve(0.1f, 0.5f);
+			main.startSize = new ParticleSystem.MinMaxCurve(0.07f, 0.2f);
+			main.startColor = new Color(0.75f, 0.7f, 0.62f, 0.55f);
+			main.maxParticles = 600;
+			main.simulationSpace = ParticleSystemSimulationSpace.World;
+			main.gravityModifier = 0.002f;
+			ParticleSystem.EmissionModule emission = dust.emission;
+			emission.rateOverTime = 90f;
+			ParticleSystem.ShapeModule shape = dust.shape;
+			shape.enabled = true;
+			shape.shapeType = ParticleSystemShapeType.Box;
+			shape.scale = new Vector3(70f, 16f, 70f);
+			ParticleSystem.NoiseModule noise = dust.noise;
+			noise.enabled = true;
+			noise.strength = 0.25f;
+			noise.frequency = 0.15f;
+			ParticleSystemRenderer renderer = go.GetComponent<ParticleSystemRenderer>();
+			renderer.sharedMaterial = new Material(source);
+			renderer.renderMode = ParticleSystemRenderMode.Billboard;
+		}
+
 		internal void Setup(TrackManager tm)
 		{
 			track = tm;
+			try
+			{
+				MakeDust();
+			}
+			catch (System.Exception e)
+			{
+				Mod.Log.LogWarning("Could not make the dust in the air: " + e.Message);
+				dust = null;
+			}
 			WeatherController weather = FindFirstObjectByType<WeatherController>();
 			sun = weather != null ? weather.directionalLight : null;
 			if (sun == null)
@@ -105,6 +164,24 @@ namespace EurekaMine
 			else if (captured)
 			{
 				Restore();
+			}
+
+			// the dust follows the camera, and only underground
+			if (dust != null)
+			{
+				bool on = amount > 0.5f;
+				if (on)
+				{
+					dust.transform.position = observer;
+					if (!dust.isPlaying)
+					{
+						dust.Play();
+					}
+				}
+				else if (dust.isPlaying)
+				{
+					dust.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+				}
 			}
 
 			// cars come and go (a late rival): look the headlights up now and then

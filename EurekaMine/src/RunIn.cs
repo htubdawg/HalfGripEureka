@@ -222,6 +222,8 @@ namespace EurekaMine
 			}
 		}
 
+		private const float GateHigh = Mine.Height - 1.5f;
+
 		/// <summary>Two timber doors at the bottom of the slope, standing open against the walls until the field is through.</summary>
 		private static GameObject BuildGate(Transform parent, int layer)
 		{
@@ -239,20 +241,20 @@ namespace EurekaMine
 				// a leaf hinged at its wall (side -1 left, +1 right), its planks reaching toward the middle of the road
 				float dir = -side;
 				Batch planks = new Batch("gate", Tex.Timber, new Color(0.7f, 0.6f, 0.5f));
-				planks.Box(new Vector3(dir * w * 0.5f, Mine.WallTop * 0.5f, 0f), new Vector3(w, Mine.WallTop, 1.2f), Quaternion.identity, 4f);
-				for (float y = 2f; y < Mine.WallTop; y += 5f)
+				planks.Box(new Vector3(dir * w * 0.5f, GateHigh * 0.5f, 0f), new Vector3(w, GateHigh, 1.2f), Quaternion.identity, 4f);
+				for (float y = 2f; y < GateHigh; y += 5f)
 				{
 					planks.Box(new Vector3(dir * w * 0.5f, y, -0.8f), new Vector3(w - 1f, 1f, 0.6f), Quaternion.identity, 4f);
 				}
-				planks.Box(new Vector3(dir * w * 0.5f, Mine.WallTop * 0.5f, -0.8f), new Vector3(w * 1.05f, 1f, 0.6f), Quaternion.Euler(0f, 0f, dir * Mathf.Atan2(Mine.WallTop, w) * Mathf.Rad2Deg), 4f);
+				planks.Box(new Vector3(dir * w * 0.5f, GateHigh * 0.5f, -0.8f), new Vector3(w * 1.05f, 1f, 0.6f), Quaternion.Euler(0f, 0f, dir * Mathf.Atan2(GateHigh, w) * Mathf.Rad2Deg), 4f);
 				GameObject hinge = new GameObject(side < 0f ? "leafL" : "leafR") { layer = layer };
 				hinge.transform.SetParent(g.transform, false);
 				hinge.transform.localPosition = new Vector3(side * w, 0f, 0f);
 				hinge.AddComponent<MeshFilter>().sharedMesh = planks.ToMesh();
 				hinge.AddComponent<MeshRenderer>().sharedMaterial = Mats.Get(planks.Tex, planks.Tint, false, Color.black);
 				BoxCollider box = hinge.AddComponent<BoxCollider>();
-				box.center = new Vector3(dir * w * 0.5f, Mine.WallTop * 0.5f, 0f);
-				box.size = new Vector3(w, Mine.WallTop, 1.6f);
+				box.center = new Vector3(dir * w * 0.5f, GateHigh * 0.5f, 0f);
+				box.size = new Vector3(w, GateHigh, 1.6f);
 				// open: swung back against the wall, uphill
 				hinge.transform.localRotation = Quaternion.Euler(0f, (side < 0f ? 1f : -1f) * 88f, 0f);
 			}

@@ -27,6 +27,8 @@ namespace EurekaMine
 		internal bool Slippery;
 		internal bool Shadows = true;
 		internal bool TwoSided;
+		/// <summary>Collision only, never drawn: the smooth walls the cars touch inside the rough rock they see.</summary>
+		internal bool Invisible;
 		internal Color Emission;
 		internal Surface Ground;
 

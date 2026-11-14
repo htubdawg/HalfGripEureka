@@ -2,7 +2,7 @@
 
 # Eureka Mine for Half Grip
 
-**Version 0.2.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
+**Version 0.3.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
 
 A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker. The race runs into the drift mouth and
 down the slope, and every lap after that is underground. It is dealt into your runs like any other map.
@@ -20,13 +20,13 @@ About **6.5 km** a lap on three levels, plus a 1.4 km run in from the surface on
 | **Pithead yard** | The grid, under the breaker's loading gallery, with the culm banks, a siding of hopper cars and the company houses behind |
 | **The slope** | Into the drift mouth and down at about 10% to the pit bottom. Lap 1 only: a timber gate shuts behind the field |
 | **Pit bottom and the haulage** | The start line and a long lit straight on the rails |
-| **The plane** | A straight 10% drop to the lower gangway. **Runaway mine cars** break loose down it now and then |
+| **The plane** | A straight 10% drop to the lower gangway. Now and then a string of **runaway mine cars** breaks loose from a heading at the top, runs down the rails in the middle of the plane, and turns off into a heading at the foot |
 | **Lower gangway** | **Coal chutes** dump lump coal onto the road. Then the road dives under the old workings |
 | **Old workings (alternate)** | The upper seam: dark, rough and slow-gripping, straight across above the dive, and a little shorter |
 | **The spiral** | A full turn and a quarter, climbing to the upper gangway |
 | **The overcast** | The upper gangway crosses 40 units over the haulage you raced at the start |
 | **Switchbacks** | Two hairpins down to the finish |
-| **Coal chute (alternate)** | Skips both hairpins, but it is loose coal and two **ventilation doors** swing shut across it. Hit a shut door fast enough and you smash through it; slower, it holds |
+| **Coal chute (alternate)** | Skips both hairpins, but it is loose coal and two **ventilation doors** swing shut across it, a red or green lamp over each. A shut door never stops you: you burst through it and lose some speed |
 
 The bots spread over the alternate routes: each one is dealt one of the four ways round.
 
@@ -64,8 +64,7 @@ In `BepInEx\config\halfgrip.eurekamine.cfg`, written the first time the game run
 | `Surfaces.YardGrip`, `YardDrag` | `0.92`, `1.15` | Grip and rolling resistance on the yard's gravel |
 | `Mine.Lights` | `8` | Real lights moved to the lamps nearest the camera. Lower is cheaper |
 | `Hazards.RunawayCars`, `CoalChutes`, `VentDoors` | `true` | Switch each hazard on or off |
-| `Hazards.DoorBreakSpeed` | `70` | Dashboard speed that smashes a shut door |
-| `Hazards.DoorSpeedKept` | `0.85` | Share of its speed a car keeps after smashing a door |
+| `Hazards.DoorSpeedKept` | `0.8` | Share of its speed a car keeps after bursting through a shut door |
 | `Debug.ShowPath`, `Debug.VerboseLog` | `false` | Draw the lap and bot paths; write the detailed build log |
 
 ## Notes
