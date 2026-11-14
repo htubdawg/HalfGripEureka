@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using HarmonyLib;
 using UnityEngine;
 
 namespace EurekaMine
@@ -240,14 +241,28 @@ namespace EurekaMine
 	}
 
 	/// <summary>
-	/// The mine's lamps glow on their own; a handful of real point lights are moved to the lamps nearest the camera a few times a second,
-	/// so the haulage is lit in pools round the player without paying for hundreds of lights.
+	/// The mine's lamps glow on their own; a handful of real point lights sit at the lamps nearest the camera, so the haulage is lit in
+	/// pools round the player without paying for hundreds of lights. Nothing may switch on or off where it can be seen (0.4.0 moved the
+	/// whole pool to the nearest lamps four times a second, so the pools far ahead blinked in and out): each light keeps its lamp for as
+	/// long as that lamp stays among the nearest, and its brightness falls smoothly to nothing at the distance of the nearest lamp left
+	/// out of the pool. That distance moves smoothly as the camera does, so a lamp joins the pool dark and leaves it dark.
 	/// </summary>
 	internal sealed class LampLights : MonoBehaviour
 	{
+		private const float Intensity = 70f;
+		private const float Reach = 400f;
+
+		/// <summary>Height counts three times over in "nearest": a lamp on the level above or below, behind 30 units of rock, lights nothing on the road.</summary>
+		private const float Vertical = 3f;
+
 		private readonly List<Light> pool = new List<Light>();
-		private float next;
-		private readonly List<int> order = new List<int>();
+		private int[] lampOf = new int[0];
+		private int[] nearest = new int[0];
+		private float[] nearestD = new float[0];
+		private readonly HashSet<int> wanted = new HashSet<int>();
+
+		private UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp;
+		private int perObjectBefore = -1;
 
 		internal void Setup(int count)
 		{
@@ -259,46 +274,147 @@ namespace EurekaMine
 				l.type = LightType.Point;
 				// not Important: the renderer gives each object only a few lights, and the cars' headlights must win them
 				l.range = 48f;
-				l.intensity = 70f;
+				l.intensity = Intensity;
 				l.color = new Color(1f, 0.8f, 0.55f);
 				l.shadows = LightShadows.None;
 				l.renderMode = LightRenderMode.Auto;
 				go.SetActive(false);
 				pool.Add(l);
 			}
+			lampOf = new int[pool.Count];
+			for (int k = 0; k < lampOf.Length; k++)
+			{
+				lampOf[k] = -1;
+			}
+			nearest = new int[pool.Count + 1];
+			nearestD = new float[pool.Count + 1];
+			RaiseLightLimit();
+		}
+
+		/// <summary>
+		/// URP's forward renderer lights each object with only its few most important lights (the asset's per-object limit, often 4): a
+		/// stretch of rock in reach of more pool lights than that dropped some of their pools, and which ones changed as the pool moved. The
+		/// limit is raised to URP's most while the mine is loaded and put back after. Forward+ has no such limit and ignores it.
+		/// </summary>
+		private void RaiseLightLimit()
+		{
+			try
+			{
+				urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+				if (urp == null)
+				{
+					Mod.Log.LogWarning("Not running URP: the lamps' per-object light limit is left alone");
+					return;
+				}
+				object mode = null;
+				try
+				{
+					mode = Traverse.Create(urp.scriptableRenderer).Property("renderingModeActual").GetValue();
+				}
+				catch (System.Exception)
+				{
+				}
+				perObjectBefore = urp.maxAdditionalLightsCount;
+				urp.maxAdditionalLightsCount = 8;
+				Mod.Log.LogInfo("Mine lamps: URP " + (mode != null ? mode.ToString() : "(rendering mode unknown)") + ", additional lights "
+					+ urp.additionalLightsRenderingMode + ", per-object limit " + perObjectBefore + " -> " + urp.maxAdditionalLightsCount);
+			}
+			catch (System.Exception e)
+			{
+				Mod.Log.LogWarning("Could not raise the per-object light limit: " + e.Message);
+				urp = null;
+			}
+		}
+
+		private void OnDestroy()
+		{
+			if (urp != null && perObjectBefore >= 0)
+			{
+				urp.maxAdditionalLightsCount = perObjectBefore;
+			}
+		}
+
+		private static float Distance(Vector3 lamp, Vector3 eye)
+		{
+			Vector3 d = lamp - eye;
+			d.y *= Vertical;
+			return d.magnitude;
 		}
 
 		private void LateUpdate()
 		{
-			if (pool.Count == 0 || Time.time < next)
-			{
-				return;
-			}
-			next = Time.time + 0.25f;
+			int n = pool.Count;
 			Camera c = Camera.main;
-			if (c == null)
+			if (n == 0 || c == null)
 			{
 				return;
 			}
 			Vector3 eye = c.transform.position;
 			List<Vector3> lamps = Mine.Lamps;
-			order.Clear();
+
+			// the n + 1 nearest lamps, kept sorted (a few hundred lamps: cheap enough every frame, so nothing steps)
+			int found = 0;
 			for (int i = 0; i < lamps.Count; i++)
 			{
-				if ((lamps[i] - eye).sqrMagnitude < 400f * 400f)
+				float d = Distance(lamps[i], eye);
+				if (d >= Reach || found == n + 1 && d >= nearestD[n])
 				{
-					order.Add(i);
+					continue;
+				}
+				int at = found < n + 1 ? found++ : n;
+				while (at > 0 && nearestD[at - 1] > d)
+				{
+					nearestD[at] = nearestD[at - 1];
+					nearest[at] = nearest[at - 1];
+					at--;
+				}
+				nearestD[at] = d;
+				nearest[at] = i;
+			}
+			// where the pool's light has faded to nothing: the nearest lamp outside the pool
+			float edge = found == n + 1 ? nearestD[n] : Reach;
+			wanted.Clear();
+			for (int k = 0; k < Mathf.Min(found, n); k++)
+			{
+				wanted.Add(nearest[k]);
+			}
+
+			// lights whose lamp has left the pool are free (it left at the edge, already dark); the lamps new to the pool take them
+			for (int k = 0; k < n; k++)
+			{
+				if (lampOf[k] >= 0 && !wanted.Remove(lampOf[k]))
+				{
+					lampOf[k] = -1;
 				}
 			}
-			order.Sort((a, b) => (lamps[a] - eye).sqrMagnitude.CompareTo((lamps[b] - eye).sqrMagnitude));
-			for (int k = 0; k < pool.Count; k++)
+			foreach (int lamp in wanted)
 			{
-				bool use = k < order.Count;
-				pool[k].gameObject.SetActive(use);
-				if (use)
+				for (int k = 0; k < n; k++)
 				{
-					pool[k].transform.position = lamps[order[k]] + Vector3.down * 1.5f;
+					if (lampOf[k] < 0)
+					{
+						lampOf[k] = lamp;
+						break;
+					}
 				}
+			}
+
+			for (int k = 0; k < n; k++)
+			{
+				Light l = pool[k];
+				float fade = 0f;
+				if (lampOf[k] >= 0)
+				{
+					Vector3 p = lamps[lampOf[k]];
+					fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(edge * 0.5f, edge, Distance(p, eye)));
+					l.transform.position = p + Vector3.down * 1.5f;
+				}
+				bool on = fade > 0.001f;
+				if (l.gameObject.activeSelf != on)
+				{
+					l.gameObject.SetActive(on);
+				}
+				l.intensity = Intensity * fade;
 			}
 		}
 	}

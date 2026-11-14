@@ -35,7 +35,9 @@ world.add(new THREE.HemisphereLight(0xcfd6dc, 0x40382f, 1.1));
 const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-0.4, 1, 0.3); world.add(sun);
 const head = new THREE.PointLight(0xfff0d0, 3, 500, 0.6); world.add(head);
 const cam = new THREE.PerspectiveCamera(70, 1280/720, 0.5, 9000);
-// the game's lamp pool: real lights at the 8 bulbs nearest the camera
+// the game's lamp pool (LampLights): real lights at the 8 bulbs nearest the camera (height counting three times over), each fading to
+// nothing at the distance of the nearest bulb left out; opts.snap = an eye position draws 0.4.0's pool instead (nearest 8 to that eye,
+// all at full strength)
 const pool = []; for (let k = 0; k < 8; k++) { const l = new THREE.PointLight(0xffcc8c, 0, 48, 1.2); world.add(l); pool.push(l); }
 const lamps = []; for (let k = 0; k < scene.lamps.length; k += 3) lamps.push(new THREE.Vector3(scene.lamps[k], scene.lamps[k + 1] - 1.5, -scene.lamps[k + 2]));
 window.shot = (eye, at, opts={}) => {
@@ -46,8 +48,15 @@ window.shot = (eye, at, opts={}) => {
   cam.fov = opts.fov || 70; cam.updateProjectionMatrix();
   cam.position.set(eye[0], eye[1], -eye[2]); head.position.copy(cam.position);
   cam.lookAt(at[0], at[1], -at[2]);
-  const near = lamps.slice().sort((p, q) => p.distanceTo(cam.position) - q.distanceTo(cam.position));
-  pool.forEach((l, k) => { l.position.copy(near[k]); l.intensity = opts.dark ? 260 : 0; });
+  const dist = (p, e) => Math.hypot(p.x - e.x, (p.y - e.y) * 3, p.z - e.z);
+  const from = opts.snap ? new THREE.Vector3(opts.snap[0], opts.snap[1], -opts.snap[2]) : cam.position;
+  const near = lamps.slice().sort((p, q) => dist(p, from) - dist(q, from));
+  const edge = Math.min(400, dist(near[pool.length], from));
+  pool.forEach((l, k) => {
+    const x = Math.min(1, Math.max(0, (dist(near[k], from) - edge * 0.5) / (edge * 0.5)));
+    const fade = opts.snap ? 1 : 1 - x * x * (3 - 2 * x);
+    l.position.copy(near[k]); l.intensity = opts.dark ? 260 * fade : 0;
+  });
   if (opts.dark) { world.children.filter(o => o.isHemisphereLight).forEach(h => h.intensity = 0.55); } else { world.children.filter(o => o.isHemisphereLight).forEach(h => h.intensity = 1.1); }
   renderer.render(world, cam);
   return true;

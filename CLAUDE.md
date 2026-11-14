@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.0 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.1 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -73,9 +73,12 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
 - C# 10 and netstandard2.1 only. Tabs, `///` summaries that say why.
 - No people on the map (the owner's call): hazards are machinery.
 - No vanilla hazards (the owner's call): the Stadium's `HazardsSpawner_FINAL` is hidden.
-- **Lights:** the renderer gives each object only a few lights, so every batch is cut into 120-unit cells (`Batch.ToMeshes`) and
-  the lamp pool's lights are `Auto`, never `ForcePixel` (0.1.0 had one mesh per batch across the whole mine and Important lamp
-  lights: the headlights lit nothing). Keep both.
+- **Lights:** URP's forward renderer gives each object only its few most important lights, so every batch is cut into 60-unit cells
+  (`Batch.ToMeshes`; 120 in 0.4.0 left most cells in reach of more lamps than the limit), `LampLights` raises the URP asset's
+  per-object limit to 8 while the mine is loaded (put back in `OnDestroy`), and the lamp pool's lights are `Auto`, never
+  `ForcePixel` (0.1.0 had one mesh per batch and Important lamp lights: the headlights lit nothing). **No light may switch on or off
+  in view:** each pool light keeps its lamp while it stays among the nearest, and fades to nothing at the distance of the nearest
+  lamp left out, every frame (0.4.0 snapped the pool to the nearest 8 every 0.25 s: pools ahead popped in and out). Keep all of it.
 - **Nothing visible stands in the road unless it is solid and meant to be:** the cars touch invisible smooth guard walls and roof at
   the road's edge (straight across every side passage, so nothing snags, bots included); the rock, posts, pipes, cables and rubble
   are drawn just behind that line. Hazard doors are never solid (owner's call after 0.2.0).
@@ -109,6 +112,15 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.1** (owner: the ceiling lights' pools "pop into view very aggressively" along the long rows of lamps): two causes. The pool
+  of 8 lights jumped to the 8 nearest lamps every 0.25 s at full strength, so the farthest pools blinked on and off; and at 120-unit
+  cells 72% of the gangway cells were in reach of more than 4 lamps (median 6), past URP's usual per-object limit, so a cell lit by
+  only some of them showed hard seams that moved with the pool. Now: the fade described under Rules, height counted three times in
+  "nearest" (lamps on other levels stopped taking the pool), 60-unit cells (median 4 lamps, 94% at 6 or fewer; about twice the
+  renderers, ~3900), the per-object limit raised to 8. Checked: compiles with no warnings; a preview drive down the haulage, old pool
+  against new. Not checked: in game. The log line `Mine lamps: URP <mode>, additional lights <mode>, per-object limit A -> B` says
+  which renderer the game uses (Forward+ has no per-object limit, so there only the fade matters).
 
 - **0.4.0** (owner's look at the 0.3.0 previews: "the braces clip through the walls, the walls are an octagon", too much feature
   creep; reference photos of the No. 9 Mine): each road is one rough bore: `Shape` (ribs to 12, elliptical arch to the roof), pushed

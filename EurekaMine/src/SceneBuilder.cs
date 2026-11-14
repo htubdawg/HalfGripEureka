@@ -174,9 +174,12 @@ namespace EurekaMine
 			}
 		}
 
-		/// <summary>Makes the object, renderer, collider and surface behaviour of a batch. Returns its triangle count.</summary>
-		/// <summary>Size of the cells the batches are cut into (see <see cref="Batch.ToMeshes"/>).</summary>
-		private const float Cell = 120f;
+		/// <summary>
+		/// Size of the cells the batches are cut into (see <see cref="Batch.ToMeshes"/>). 60, not 120 (0.4.0): a 120-unit stretch of
+		/// gangway was in reach of six or seven lamps, more than the renderer lights one object with; at 60 nearly all are in reach of
+		/// six or fewer, which leaves room for the headlights.
+		/// </summary>
+		private const float Cell = 60f;
 
 		/// <summary>Makes the objects (one per cell), renderers, colliders and surface behaviour of a batch. Returns its triangle count.</summary>
 		private static int Spawn(Batch batch, Transform parent, int layer)
