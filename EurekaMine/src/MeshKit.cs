@@ -27,6 +27,8 @@ namespace EurekaMine
 		internal bool Slippery;
 		internal bool Shadows = true;
 		internal bool TwoSided;
+		/// <summary>How glossy it is (0.05 is dry rock; puddles are high).</summary>
+		internal float Smooth = 0.05f;
 		/// <summary>Collision only, never drawn: the smooth walls the cars touch inside the rough rock they see.</summary>
 		internal bool Invisible;
 		internal Color Emission;
@@ -166,6 +168,28 @@ namespace EurekaMine
 			}
 		}
 
+		/// <summary>Adds a vertex others can share (a smooth surface: its normal is averaged over every triangle using it). Returns its index.</summary>
+		internal int Vertex(Vector3 p, Vector2 uvAt)
+		{
+			v.Add(p);
+			uv.Add(uvAt);
+			return v.Count - 1;
+		}
+
+		internal void Triangle(int a, int b, int c)
+		{
+			t.Add(a);
+			t.Add(b);
+			t.Add(c);
+		}
+
+		/// <summary>A quad of shared vertices, wound like <see cref="Quad(Vector3, Vector3, Vector3, Vector3, float)"/>.</summary>
+		internal void QuadIndex(int a, int b, int c, int d)
+		{
+			Triangle(a, b, c);
+			Triangle(a, c, d);
+		}
+
 		/// <summary>A quad seen from both sides (cloth, niche walls): the same corners wound both ways.</summary>
 		internal void QuadBoth(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float tile)
 		{
@@ -249,9 +273,9 @@ namespace EurekaMine
 			cache.Clear();
 		}
 
-		internal static Material Get(Texture2D tex, Color tint, bool twoSided, Color emission)
+		internal static Material Get(Texture2D tex, Color tint, bool twoSided, Color emission, float smooth = 0.05f)
 		{
-			string key = (tex != null ? tex.GetInstanceID().ToString() : "-") + "|" + ColorUtility.ToHtmlStringRGBA(tint) + "|" + twoSided + "|" + ColorUtility.ToHtmlStringRGB(emission);
+			string key = (tex != null ? tex.GetInstanceID().ToString() : "-") + "|" + ColorUtility.ToHtmlStringRGBA(tint) + "|" + twoSided + "|" + ColorUtility.ToHtmlStringRGB(emission) + "|" + smooth.ToString("0.00");
 			if (cache.TryGetValue(key, out Material m) && m != null)
 			{
 				return m;
@@ -284,7 +308,7 @@ namespace EurekaMine
 			}
 			if (m.HasProperty("_Smoothness"))
 			{
-				m.SetFloat("_Smoothness", 0.05f);
+				m.SetFloat("_Smoothness", smooth);
 			}
 			if (m.HasProperty("_Metallic"))
 			{

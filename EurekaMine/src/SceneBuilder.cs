@@ -182,7 +182,7 @@ namespace EurekaMine
 		private static int Spawn(Batch batch, Transform parent, int layer)
 		{
 			int triangles = 0;
-			Material material = Mats.Get(batch.Tex, batch.Tint, batch.TwoSided, batch.Emission);
+			Material material = Mats.Get(batch.Tex, batch.Tint, batch.TwoSided, batch.Emission, batch.Smooth);
 			foreach (Mesh mesh in batch.ToMeshes(Cell))
 			{
 				GameObject go = new GameObject(batch.Name) { layer = layer };

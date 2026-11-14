@@ -9,7 +9,7 @@ namespace EurekaMine
 	internal static class Tex
 	{
 		internal static Texture2D Rock, Coal, Timber, Boards, Corrugated, Brick, Grass, Gravel, Steel, Clapboard, Culm, Plain, Shingle;
-		internal static Texture2D RibWall, RoofBolts, MineFloor, Brattice, Chevron, Enamel, Concrete, Belt, OldRib;
+		internal static Texture2D RibWall, RoofRock, RoofBolts, MineFloor, Brattice, Chevron, Enamel, Concrete, Belt, OldRib;
 
 		private static bool made;
 
@@ -91,40 +91,54 @@ namespace EurekaMine
 			Plain = Paint("plain", 4, 13, (x, y, n) => Color.white);
 			// A rib (mine wall) sprayed white with rock dust, as the law has wanted since the early 1900s against coal-dust explosions,
 			// with the black coal seam showing through in a band. The u axis runs up the wall: the walls are drawn with one tile from floor to top.
-			RibWall = Paint("rib", 64, 14, (x, y, n) =>
+			// The rock of the bore, after the No. 9 Mine: dark slate grey going to black, muted brown where water has stained it, blocky
+			// cracks, and the coal band low on the ribs. u runs round the section (24 units a tile: the band sits at u 0.23..0.40),
+			// v along the road. It is drawn glossy, so the lamps and headlights catch the wet.
+			RibWall = Paint("rib", 128, 14, (x, y, n) =>
 			{
-				// u (x) runs up the rib, v (y) along the road. The seam's edges wander, the dust lies in blotches with bare rock between,
-				// and water has streaked it here and there.
 				float v = n.Value();
-				float wave = Blob(y, 0, 16, 64, 31) * 6f - 3f;
-				float lo = 17f + wave, hi = 37f + Blob(y, 7, 16, 64, 32) * 5f - 2.5f;
-				float dusted = Blob(x, y, 16, 64, 33) * 0.7f + Blob(x, y, 8, 64, 34) * 0.3f;
-				Color bare = Color.Lerp(new Color(0.30f, 0.28f, 0.26f), new Color(0.42f, 0.40f, 0.37f), v);
-				Color dust = Color.Lerp(new Color(0.62f, 0.61f, 0.57f), new Color(0.80f, 0.79f, 0.74f), v);
-				Color coal = Color.Lerp(new Color(0.06f, 0.06f, 0.07f), new Color(0.20f, 0.20f, 0.23f), v * v);
+				float tone = Blob(x, y, 32, 128, 51) * 0.6f + Blob(x, y, 8, 128, 52) * 0.4f;
+				Color c = Color.Lerp(new Color(0.09f, 0.09f, 0.095f), new Color(0.32f, 0.31f, 0.29f), tone) * (0.85f + v * 0.3f);
+				float stain = Blob(x / 2, y, 16, 64, 53);
+				if (stain > 0.6f)
+				{
+					c = Color.Lerp(c, new Color(0.30f, 0.20f, 0.12f), (stain - 0.6f) * 1.8f);
+				}
+				// the coal band, its edges wandering
+				float lo = 30f + Blob(0, y, 16, 128, 54) * 6f, hi = 50f + Blob(3, y, 16, 128, 55) * 6f;
 				if (x > lo && x < hi)
 				{
-					// the seam, a thin slate parting through it, dusted grey in places
-					bool parting = Mathf.Abs(x - (lo + hi) * 0.5f - 1f) < 1f;
-					Color c = parting ? new Color(0.30f, 0.29f, 0.28f) : coal;
-					return Color.Lerp(c, dust, Mathf.Clamp01(dusted - 0.55f) * 1.2f);
+					c = Color.Lerp(new Color(0.03f, 0.03f, 0.035f), new Color(0.12f, 0.12f, 0.14f), v * v);
 				}
-				Color rock = Color.Lerp(bare, dust, Edge(0.25f, 0.65f, dusted));
-				// thinning to bare near the floor, and rust-brown water streaks running down
-				rock = Color.Lerp(bare * 0.8f, rock, Mathf.Clamp01(x / 8f));
-				if (Blob(0, y, 4, 64, 35) > 0.8f && x < lo)
-				{
-					rock = Color.Lerp(rock, new Color(0.38f, 0.26f, 0.16f), 0.45f);
-				}
-				return rock;
+				// blocky: faces of broken rock, each a little lighter or darker than the next
+				int fx = (x + (int)(Blob(x, y, 16, 128, 57) * 6f)) / 6, fy = (y + (int)(Blob(y, x, 16, 128, 58) * 6f)) / 6;
+				return c * (0.8f + 0.4f * Mine.Hash(fx, fy, 0, 59));
 			});
 			// the old workings: never dusted, grey rock and coal, darker
-			OldRib = Paint("oldrib", 64, 15, (x, y, n) =>
+			// the same rock for the arch, without the coal band (it is only in the ribs)
+			RoofRock = Paint("roofrock", 128, 24, (x, y, n) =>
 			{
 				float v = n.Value();
-				bool seam = x > 18 && x < 38;
-				return seam ? Color.Lerp(new Color(0.06f, 0.06f, 0.07f), new Color(0.16f, 0.16f, 0.18f), v)
-					: Color.Lerp(new Color(0.28f, 0.26f, 0.24f), new Color(0.38f, 0.36f, 0.33f), v);
+				float tone = Blob(x, y, 32, 128, 51) * 0.6f + Blob(x, y, 8, 128, 52) * 0.4f;
+				Color c = Color.Lerp(new Color(0.09f, 0.09f, 0.095f), new Color(0.32f, 0.31f, 0.29f), tone) * (0.85f + v * 0.3f);
+				float stain = Blob(x / 2, y, 16, 64, 53);
+				if (stain > 0.6f)
+				{
+					c = Color.Lerp(c, new Color(0.30f, 0.20f, 0.12f), (stain - 0.6f) * 1.8f);
+				}
+				// blocky: faces of broken rock, each a little lighter or darker than the next
+				int fx = (x + (int)(Blob(x, y, 16, 128, 57) * 6f)) / 6, fy = (y + (int)(Blob(y, x, 16, 128, 58) * 6f)) / 6;
+				return c * (0.8f + 0.4f * Mine.Hash(fx, fy, 0, 59));
+			});
+			// the old workings: never dusted, grey rock and coal, darker
+			// the old workings: browner and more broken, never kept up
+			OldRib = Paint("oldrib", 128, 15, (x, y, n) =>
+			{
+				float v = n.Value();
+				float tone = Blob(x, y, 32, 128, 61) * 0.6f + Blob(x, y, 8, 128, 62) * 0.4f;
+				Color c = Color.Lerp(new Color(0.06f, 0.055f, 0.05f), new Color(0.24f, 0.20f, 0.16f), tone) * (0.8f + v * 0.35f);
+				int fx = (x + (int)(Blob(x, y, 16, 128, 64) * 6f)) / 6, fy = (y + (int)(Blob(y, x, 16, 128, 65) * 6f)) / 6;
+				return c * (0.75f + 0.5f * Mine.Hash(fx, fy, 0, 66));
 			});
 			// the roof: dusted, with a roof bolt's square plate every 16 pixels
 			RoofBolts = Paint("roof", 64, 16, (x, y, n) =>
@@ -143,10 +157,13 @@ namespace EurekaMine
 				}
 				return c;
 			});
-			MineFloor = Paint("floor", 32, 17, (x, y, n) =>
+			// the floor: dark gravel ballast and fines, a lighter stone here and there
+			MineFloor = Paint("floor", 64, 17, (x, y, n) =>
 			{
 				float v = n.Value();
-				return v > 0.9f ? new Color(0.45f, 0.43f, 0.40f) : Color.Lerp(new Color(0.20f, 0.19f, 0.18f), new Color(0.30f, 0.29f, 0.27f), v);
+				float patch = Blob(x, y, 16, 64, 71);
+				Color c = Color.Lerp(new Color(0.10f, 0.10f, 0.10f), new Color(0.24f, 0.23f, 0.21f), patch * 0.6f + v * 0.4f);
+				return v > 0.94f ? new Color(0.42f, 0.40f, 0.37f) : c;
 			});
 			Brattice = Paint("brattice", 32, 18, (x, y, n) =>
 			{

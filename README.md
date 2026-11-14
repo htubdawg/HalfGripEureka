@@ -2,7 +2,7 @@
 
 # Eureka Mine for Half Grip
 
-**Version 0.3.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
+**Version 0.4.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
 
 A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker. The race runs into the drift mouth and
 down the slope, and every lap after that is underground. It is dealt into your runs like any other map.
@@ -26,7 +26,7 @@ About **6.5 km** a lap on three levels, plus a 1.4 km run in from the surface on
 | **The spiral** | A full turn and a quarter, climbing to the upper gangway |
 | **The overcast** | The upper gangway crosses 40 units over the haulage you raced at the start |
 | **Switchbacks** | Two hairpins down to the finish |
-| **Coal chute (alternate)** | Skips both hairpins, but it is loose coal and two **ventilation doors** swing shut across it, a red or green lamp over each. A shut door never stops you: you burst through it and lose some speed |
+| **Coal chute (alternate)** | Skips both hairpins, but it is loose coal and two **ventilation doors** swing shut across it. A shut door never stops you: you burst through it and lose some speed |
 
 The bots spread over the alternate routes: each one is dealt one of the four ways round.
 

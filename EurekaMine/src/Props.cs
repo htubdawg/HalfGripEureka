@@ -383,14 +383,6 @@ namespace EurekaMine
 				Vector3 ra = r.Right(i), rc = r.Right(i + 1);
 				float ha = r.HalfAt(i), hc = r.HalfAt(i + 1);
 				float ta = r.CeilAt(i) - (Mine.Height - Mine.WallTop), tc = r.CeilAt(i + 1) - (Mine.Height - Mine.WallTop);
-				if (SolidWall(r, i, -1f) && SolidWall(r, i + 1, -1f))
-				{
-					pipe.Cylinder(a - ra * (ha + 0.2f) + Vector3.up * 2.4f, c - rc * (hc + 0.2f) + Vector3.up * 2.4f, 0.55f, 6, 3f, false);
-					if (i % 3 == 0)
-					{
-						pipe.Box(a - ra * (ha + 0.6f) + Vector3.up * 2.4f, new Vector3(1.4f, 0.4f, 0.4f), Quaternion.LookRotation(r.Forward(i), Vector3.up), 1f);
-					}
-				}
 				if (SolidWall(r, i, 1f) && SolidWall(r, i + 1, 1f))
 				{
 					// the cable hangs from a hook at every point and sags between

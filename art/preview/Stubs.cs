@@ -4,8 +4,9 @@ using System.Collections.Generic;
 namespace UnityEngine.Rendering { public enum IndexFormat { UInt16, UInt32 } public enum ShadowCastingMode { Off, On } }
 namespace UnityEngine
 {
-	public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; }
-		public static Vector2 operator /(Vector2 a, float d) => new Vector2(a.x / d, a.y / d); }
+	public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero => new Vector2(0, 0);
+		public static Vector2 operator /(Vector2 a, float d) => new Vector2(a.x / d, a.y / d);
+		public Vector2 normalized { get { float m = (float)Math.Sqrt(x * x + y * y); return m > 1e-6f ? new Vector2(x / m, y / m) : new Vector2(0, 0); } } }
 	public struct Vector3
 	{
 		public float x, y, z;
@@ -68,7 +69,7 @@ namespace UnityEngine
 		public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
 		public static float SmoothStep(float from, float to, float t) { t = Clamp01(t); t = t * t * (3 - 2 * t); return from + (to - from) * t; }
 		public static float InverseLerp(float a, float b, float v) => a == b ? 0 : Clamp01((v - a) / (b - a));
-		public static int RoundToInt(float v) => (int)Math.Round(v); public static int FloorToInt(float v) => (int)Math.Floor(v); public static float Max(float a, float b) => Math.Max(a, b);
+		public static int RoundToInt(float v) => (int)Math.Round(v); public static int FloorToInt(float v) => (int)Math.Floor(v); public static float Round(float v) => (float)Math.Round(v); public static float Floor(float v) => (float)Math.Floor(v); public static float Max(float a, float b) => Math.Max(a, b);
 		public static int Max(int a, int b) => Math.Max(a, b); public static float Min(float a, float b) => Math.Min(a, b);
 	}
 	public struct Color { public float r, g, b, a; public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }

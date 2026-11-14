@@ -390,7 +390,7 @@ namespace EurekaMine
 
 	/// <summary>
 	/// Two pairs of timber ventilation doors across the coal chute. They swing shut and open again on a cycle (open 3.2 s, shut 2.2 s),
-	/// with a lamp over each pair, green while open and red while shut or shutting, so the state reads from far off. They are never
+	/// They are never
 	/// solid: a car that meets a shut door bursts through it, planks flying, and loses a share of its speed (DoorSpeedKept). A smashed
 	/// pair is back up twelve seconds later. (0.2.0 held a car under a set speed, and its sensor was too short to act before a fast car
 	/// arrived: cars hit a solid door that then broke.)
@@ -400,7 +400,6 @@ namespace EurekaMine
 		private sealed class Door
 		{
 			public Transform Left, Right, Frame;
-			public GameObject Red, Green;
 			public float Phase;
 			public float BrokenUntil;
 			public float Shut;
@@ -451,13 +450,6 @@ namespace EurekaMine
 						d.Right = hinge;
 					}
 				}
-				// the lamp over the doors, facing the cars coming down the chute
-				Batch red = new Batch("door lamp red", Tex.Plain, new Color(1f, 0.15f, 0.08f)) { Emission = new Color(2.5f, 0.3f, 0.15f) };
-				red.Box(Vector3.zero, new Vector3(2.4f, 1.6f, 0.6f), Quaternion.identity, 1f);
-				Batch green = new Batch("door lamp green", Tex.Plain, new Color(0.15f, 1f, 0.3f)) { Emission = new Color(0.3f, 2.5f, 0.5f) };
-				green.Box(Vector3.zero, new Vector3(2.4f, 1.6f, 0.6f), Quaternion.identity, 1f);
-				d.Red = AddMesh(frame.transform, "red", red, new Vector3(0f, high - 1.6f, -1.2f)).gameObject;
-				d.Green = AddMesh(frame.transform, "green", green, new Vector3(0f, high - 1.6f, -1.2f)).gameObject;
 				// the sensor: the doorway itself, on Ignore Raycast (the cars find the ground with rays that would otherwise stop on it)
 				GameObject sensor = new GameObject("door sensor") { layer = 2 };
 				sensor.transform.SetParent(frame.transform, false);
@@ -524,11 +516,6 @@ namespace EurekaMine
 				d.Right.gameObject.SetActive(!broken);
 				d.Left.localRotation = Quaternion.Euler(0f, angle, 0f);
 				d.Right.localRotation = Quaternion.Euler(0f, -angle, 0f);
-				// red from a moment before they start to swing until they are open again
-				float cycle = Open + Swing + Closed + Swing;
-				bool warn = !broken && ((t % cycle) > Open - 0.8f);
-				d.Red.SetActive(warn);
-				d.Green.SetActive(!warn);
 			}
 		}
 
