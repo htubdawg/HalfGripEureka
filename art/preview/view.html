@@ -52,6 +52,10 @@ const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-0.4, 1,
 const head = new THREE.PointLight(0xfff0d0, 3, 500, 0.6); world.add(head);
 // opts.spot: a stand-in for a car's headlights instead of the light at the camera: a cone from just under the eye towards where it looks
 const spot = new THREE.SpotLight(0xfff0d8, 0, 160, 0.5, 0.5, 1.2); world.add(spot); world.add(spot.target);
+// opts.lamps = [{p, d, i, outer, inner, range, color}]: a car's headlight as the game has it (a URP spot: intensity over distance squared,
+// smoothed out at its range, soft between the inner and outer cone in degrees), in game coordinates. Unity's lit shaders take no 1/pi in
+// the diffuse and three's do, so the intensity is given times pi here (opts.amb likewise, to compare against the game's ambient)
+const carLamps = []; for (let k = 0; k < 4; k++) { const l = new THREE.SpotLight(0xffffff, 0, 150, 0.3, 0.3, 2); world.add(l); world.add(l.target); carLamps.push(l); }
 const cam = new THREE.PerspectiveCamera(70, 1280/720, 0.5, 9000);
 // the bulbs' light is painted (the glow batches); opts.pool draws 0.4.1's pool of real lights instead: the 8 bulbs nearest the camera
 // (height counting three times over), each fading to nothing at the distance of the nearest bulb left out
@@ -74,6 +78,15 @@ window.shot = (eye, at, opts={}) => {
   cam.position.set(eye[0], eye[1], -eye[2]); head.position.copy(cam.position);
   cam.lookAt(at[0], at[1], -at[2]);
   spot.intensity = opts.dark && opts.spot ? opts.spot : 0; if (opts.spot) { head.intensity = 0; spot.position.set(eye[0], eye[1] - 5, -eye[2]); spot.target.position.set(at[0], at[1] - 7, -at[2]); }
+  carLamps.forEach((l, k) => {
+    const L = (opts.lamps || [])[k];
+    l.intensity = L ? L.i * Math.PI : 0;
+    if (!L) return;
+    head.intensity = 0;
+    l.color.setRGB(...(L.color || [0.7, 0.68, 0.54]), THREE.SRGBColorSpace);
+    l.distance = L.range || 150; l.angle = (L.outer || 30) * Math.PI / 360; l.penumbra = 1 - (L.inner || 21.8) / (L.outer || 30);
+    l.position.set(L.p[0], L.p[1], -L.p[2]); l.target.position.set(L.p[0] + L.d[0], L.p[1] + L.d[1], -(L.p[2] + L.d[2]));
+  });
   const dist = (p, e) => Math.hypot(p.x - e.x, (p.y - e.y) * 3, p.z - e.z);
   const from = cam.position;
   const near = lamps.slice().sort((p, q) => dist(p, from) - dist(q, from));

@@ -102,7 +102,10 @@ namespace EurekaMine
 			}
 			Transform ground = env.transform.Find("Ground");
 			int layer = ground != null ? ground.gameObject.layer : 0;
-			Material source = ground != null && ground.TryGetComponent(out MeshRenderer groundRenderer) ? groundRenderer.sharedMaterial : null;
+			MeshRenderer groundRenderer = ground != null ? ground.GetComponent<MeshRenderer>() : null;
+			Material source = groundRenderer != null ? groundRenderer.sharedMaterial : null;
+			MineLayer = layer;
+			MineRenderingLayers = groundRenderer != null ? groundRenderer.renderingLayerMask : 1u;
 			foreach (string name in new[] { "Ground", "Track", "Decoration" })
 			{
 				Transform t = env.transform.Find(name);
@@ -190,6 +193,15 @@ namespace EurekaMine
 			}
 		}
 
+		/// <summary>The layer the mine is built on (the Stadium ground's), for the headlight check in the log.</summary>
+		internal static int MineLayer;
+
+		/// <summary>
+		/// The rendering layers of the Stadium ground the mine replaces: a URP light lights only renderers sharing one of its rendering
+		/// layers, so the mine's take the ground's, which the cars' headlights are made to light (a new renderer's default may not be).
+		/// </summary>
+		internal static uint MineRenderingLayers = 1u;
+
 		/// <summary>Size of the cells the batches are cut into (see <see cref="Batch.ToMeshes"/>).</summary>
 		private const float Cell = 120f;
 
@@ -210,6 +222,7 @@ namespace EurekaMine
 					mr.shadowCastingMode = batch.Shadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
 					mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
 					mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+					mr.renderingLayerMask = MineRenderingLayers;
 				}
 				if (batch.Collide)
 				{

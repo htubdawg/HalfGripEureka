@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.9 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.10 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -78,7 +78,7 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
 - **Lights:** the bulbs' light is **painted at build time** (`Glow`), never real lights: every bulb lights its stretch at any
   distance and nothing switches on or off in view (0.4.0 and 0.4.1 moved 8 real lights to the nearest bulbs: popping, then black past
   them). The glow is a twin of each lit surface, its texture times vertex colours, drawn added (`GlowMats`: a copy of a scene material
-  on URP Particles/Unlit, so the variant exists in the build). Only the cars' headlights are real. The game is URP **Forward** with a
+  on URP Particles/Unlit, so the variant exists in the build). Only the cars' headlights are real, made brighter and wider underground (`Underground.Headlamp`, see 0.4.10). The game is URP **Forward** with a
   per-object limit of 8 (0.419 log), so batches are cut into 120-unit cells (`Batch.ToMeshes`) for the headlights (0.1.0's one mesh
   per batch: they lit nothing). The old pool (`LampLights`) runs only if the glow's shader is missing.
 - **Nothing visible stands in the road unless it is solid and meant to be:** the cars touch invisible smooth guard walls and roof at
@@ -105,7 +105,8 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - **Pictures without the game:** `art/preview/run.sh <outdir>` compiles `Mine`, `Pithead`, `Props`, `Route`, `MeshKit` and `Textures`
   against a stand-in for UnityEngine (`art/preview/Stubs.cs`) and draws the meshes, with their textures, in three.js in headless
   Chromium; underground shots are lit by the painted glow as the game draws it (texture times vertex colour, added), with
-  `opts.pool` drawing 0.4.1's real-light pool instead; `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
+  `opts.pool` drawing 0.4.1's real-light pool instead, and `opts.lamps` a car's headlight as URP lights it (the `40_head_*` chase shots:
+  none, the game's, the mine's; `HEADTRY="i,outer,inner,pitch;..."` for others, `ONLY=40_` to take just those); `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
   lacks, the preview build fails: add it to `Stubs.cs` with Unity's meaning (e.g. `Mathf.SmoothStep` interpolates). Add a shot to
   `art/preview/shots.py` for whatever changed, look at it, and send the owner pictures. Run with `TMPDIR` set to the scratchpad.
 - **Rock in the road:** `INTRUDE=1 dotnet <work>/bin/preview.dll scene.json` (after a `run.sh`) lists drawn rock standing inside a
@@ -131,6 +132,20 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.10** (owner, in game on 0.4.9: "Track is looking good but the headlights seem to not do a whole lot"; check nothing interferes,
+  else improve them). Interference: none found. The game's headlight is one spot per car (`Headlights/Spot Light`, intensity 500, range
+  150, colour (0.7, 0.68, 0.54), shadows off; its cone and aim are not in the scene dump); only `HeadLightsController.Start` (weather's
+  `headlightsActive`) and the bots' `PitGuard` flash touch it in the game's code, and the mod's `Underground` switches it on below the
+  yard. The mine is URP/Lit (the Stadium ground's shader), on the ground's layer, normals recalculated, cells of 120 with one light per
+  car. Why it lit little: intensity over distance squared, aimed along a bore so it meets floor and ribs at a grazing angle, on dark rock
+  (the preview with the game's light, a 30 degree cone guessed: barely visible). Now underground (eased in with the car's depth) every
+  car's headlight is `HeadlightBoost` (8) times as bright, its cone at least `HeadlightAngle` (110; inner 55% of it) and its range at least
+  220; written only when the target changes, so PitGuard's flash still works; put back on unload. Still one light per car. As a guard,
+  the mine's renderers take the Stadium ground's `renderingLayerMask` (URP lights only renderers sharing a rendering layer). Log line,
+  always written once: `Headlight: Spot intensity ... cone A/B aim (local) ... culling mask includes|EXCLUDES the mine's layer ...;
+  rendering layers light X, mine Y (shared|NONE SHARED)`. Checked: compiles with no warnings; preview chase shots, none/game/mine.
+  Not checked: in game (the real cone and aim, how bright x8 reads with the game's exposure and bloom).
 
 - **0.4.9** (owner, in game on 0.4.8, with a screenshot: "Still have a lot of 1-way visible walls and floors. The decorative side-rooms
   still have 2D planes for walls instead of looking naturally embedded into the terrain"): a new check in the preview (`BACKS=1`, see

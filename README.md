@@ -2,7 +2,7 @@
 
 # Eureka Mine for Half Grip
 
-**Version 0.4.9** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
+**Version 0.4.10** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
 
 A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker. The race runs into the drift mouth and
 down the slope, and every lap after that is underground. It is dealt into your runs like any other map.
@@ -64,6 +64,8 @@ In `BepInEx\config\halfgrip.eurekamine.cfg`, written the first time the game run
 | `Surfaces.ChuteGrip`, `ChuteDrag` | `0.68`, `1.35` | Grip (a share of the haulage's) and rolling resistance on the coal chute |
 | `Surfaces.YardGrip`, `YardDrag` | `0.92`, `1.15` | Grip and rolling resistance on the yard's gravel |
 | `Mine.LampBrightness` | `1.0` | Brightness of the bulbs' light on the rock. Higher is brighter |
+| `Mine.HeadlightBoost` | `8` | Underground, the cars' headlights are this many times as bright as the game's own (1: the game's) |
+| `Mine.HeadlightAngle` | `110` | Underground, the headlights' cone in degrees, at least |
 | `Mine.Lights` | `8` | Only if the lamps' light can't be painted (the log says so): real lights moved to the lamps nearest the camera. Lower is cheaper |
 | `Hazards.RunawayCars`, `CoalChutes`, `VentDoors` | `true` | Switch each hazard on or off |
 | `Hazards.DoorSpeedKept` | `0.8` | Share of its speed a car keeps after bursting through a shut door |

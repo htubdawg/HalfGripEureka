@@ -195,9 +195,98 @@ namespace EurekaMine
 			{
 				if (h != null && h.spotlight != null)
 				{
-					h.spotlight.SetActive(Depth(h.transform.position) > 0.2f);
+					float depth = Depth(h.transform.position);
+					h.spotlight.SetActive(depth > 0.2f);
+					Headlamp(h, depth);
 				}
 			}
+		}
+
+		/// <summary>A car's headlight as the game made it, kept to put back and to scale from.</summary>
+		private sealed class Lamp
+		{
+			internal float Intensity, Range, Angle, Inner, Written = -1f;
+		}
+
+		private readonly Dictionary<Light, Lamp> lamps = new Dictionary<Light, Lamp>();
+		private bool lampLogged;
+
+		/// <summary>
+		/// The game's headlight is a spot made for a night on open tarmac (intensity 500 over distance squared, range 150): in a dark bore it
+		/// lands on the rock at a grazing angle, and the rock is dark, so it lit next to nothing (owner, 0.4.9). Underground it is made
+		/// brighter, wider and longer (<see cref="Mod.HeadlightBoost"/>, <see cref="Mod.HeadlightAngle"/>), eased in with the car's depth.
+		/// Still one light per car, so the renderer's 8 lights per object are enough for the whole field. Written only when the target
+		/// changes, so a bot's warning flash (PitGuard sets the same light's intensity while it flashes) is left alone.
+		/// </summary>
+		private void Headlamp(HeadLightsController h, float depth)
+		{
+			Light light = h.spotlight.GetComponent<Light>();
+			if (light == null)
+			{
+				return;
+			}
+			if (!lamps.TryGetValue(light, out Lamp lamp))
+			{
+				lamp = new Lamp { Intensity = light.intensity, Range = light.range, Angle = light.spotAngle, Inner = light.innerSpotAngle };
+				lamps[light] = lamp;
+				if (!lampLogged && track != null && track.playerCarController != null && h.GetComponentInParent<CarControllerNew>() == track.playerCarController)
+				{
+					lampLogged = true;
+					LogLamp(light);
+				}
+			}
+			float k = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.2f, 1f, depth));
+			float boost = Mathf.Max(0f, Mod.HeadlightBoost.Value);
+			float target = lamp.Intensity * Mathf.Lerp(1f, boost, k);
+			if (Mathf.Abs(target - lamp.Written) < 0.5f)
+			{
+				return;
+			}
+			lamp.Written = target;
+			light.intensity = target;
+			float angle = Mathf.Clamp(Mod.HeadlightAngle.Value, 1f, 179f);
+			light.spotAngle = Mathf.Lerp(lamp.Angle, Mathf.Max(lamp.Angle, angle), k);
+			light.innerSpotAngle = Mathf.Lerp(lamp.Inner, Mathf.Max(lamp.Inner, angle * 0.55f), k);
+			light.range = Mathf.Lerp(lamp.Range, Mathf.Max(lamp.Range, 220f), k);
+		}
+
+		/// <summary>
+		/// Once, the player's headlight as the game set it up and whether anything of the mod's could keep it off the rock: the light's
+		/// culling mask against the mine's layer, its rendering layers against the mine's renderers'.
+		/// </summary>
+		private void LogLamp(Light light)
+		{
+			try
+			{
+				int layer = SceneBuilder.MineLayer;
+				uint ours = SceneBuilder.MineRenderingLayers;
+				uint theirs = (uint)light.renderingLayerMask;
+				Mod.Log.LogInfo("Headlight: " + light.type + " intensity " + light.intensity + " range " + light.range + " cone " + light.spotAngle
+					+ "/" + light.innerSpotAngle + " aim (local) " + light.transform.localEulerAngles + " render mode " + light.renderMode
+					+ "; culling mask " + (((light.cullingMask >> layer) & 1) != 0 ? "includes" : "EXCLUDES") + " the mine's layer " + LayerMask.LayerToName(layer)
+					+ "; rendering layers light " + theirs + ", mine " + ours + ((theirs & ours) != 0 ? " (shared)" : " (NONE SHARED)")
+					+ "; underground x" + Mod.HeadlightBoost.Value + ", cone " + Mod.HeadlightAngle.Value);
+			}
+			catch (System.Exception e)
+			{
+				Mod.Log.LogWarning("Could not describe the headlight: " + e.Message);
+			}
+		}
+
+		/// <summary>The headlights as the game made them (coming out into the yard, or the map unloading).</summary>
+		private void RestoreLamps()
+		{
+			foreach (KeyValuePair<Light, Lamp> e in lamps)
+			{
+				if (e.Key != null)
+				{
+					e.Key.intensity = e.Value.Intensity;
+					e.Key.range = e.Value.Range;
+					e.Key.spotAngle = e.Value.Angle;
+					e.Key.innerSpotAngle = e.Value.Inner;
+				}
+			}
+			lamps.Clear();
 		}
 
 		private void Capture()
@@ -237,6 +326,7 @@ namespace EurekaMine
 			{
 				Restore();
 			}
+			RestoreLamps();
 		}
 	}
 

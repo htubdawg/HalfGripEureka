@@ -17,7 +17,7 @@ namespace EurekaMine
 
 		internal static ConfigEntry<bool> TestMode;
 		internal static ConfigEntry<float> BenchmarkFactor;
-		internal static ConfigEntry<float> HaulageGrip, LampBrightness;
+		internal static ConfigEntry<float> HaulageGrip, LampBrightness, HeadlightBoost, HeadlightAngle;
 		internal static ConfigEntry<float> RoughGrip, RoughDrag, CoalGrip, CoalDrag, YardGrip, YardDrag;
 		internal static ConfigEntry<int> Lights;
 		internal static ConfigEntry<bool> RunawayCars, CoalChutes, VentDoors;
@@ -42,6 +42,8 @@ namespace EurekaMine
 			YardGrip = ctx.Config.Bind("Surfaces", "YardGrip", 0.92f, "Grip on the pithead yard's gravel.");
 			YardDrag = ctx.Config.Bind("Surfaces", "YardDrag", 1.15f, "Rolling resistance on the yard's gravel.");
 			LampBrightness = ctx.Config.Bind("Mine", "LampBrightness", 1f, "Brightness of the light the bulbs paint on the rock, 1 being the mod's own. Read when the map is built.");
+			HeadlightBoost = ctx.Config.Bind("Mine", "HeadlightBoost", 8f, "Underground, the cars' headlights are this many times as bright as the game makes them (1: the game's own, made for open tarmac at night).");
+			HeadlightAngle = ctx.Config.Bind("Mine", "HeadlightAngle", 110f, "Underground, the headlights' cone in degrees, at least (the game's own is kept if wider).");
 			Lights = ctx.Config.Bind("Mine", "Lights", 8, "Only used if the lamps' light cannot be painted on the rock (the log warns): real lights moved to the mine lamps nearest the camera. Lower is cheaper.");
 			RunawayCars = ctx.Config.Bind("Hazards", "RunawayCars", true, "Strings of loaded mine cars break loose down the plane now and then.");
 			CoalChutes = ctx.Config.Bind("Hazards", "CoalChutes", true, "Chutes over the lower gangway dump lump coal onto the road.");
