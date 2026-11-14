@@ -135,6 +135,7 @@ namespace EurekaMine
 			if (glow)
 			{
 				float g0 = Time.realtimeSinceStartup;
+				Glow.Strength = Glow.BaseStrength * Mod.LampBrightness.Value;
 				int painted = Glow.Build(batches);
 				Mod.Log.LogInfo("Lamp light painted on " + painted + " triangles in " + ((Time.realtimeSinceStartup - g0) * 1000f).ToString("0") + " ms");
 			}
@@ -232,19 +233,43 @@ namespace EurekaMine
 				}
 				switch (batch.Ground)
 				{
+					case Surface.Haulage:
+						AddHandling(go, Grip(Surface.Haulage), 1f, false);
+						break;
 					case Surface.Rough:
-						AddHandling(go, Mod.RoughGrip.Value, Mod.RoughDrag.Value, true);
+						AddHandling(go, Grip(Surface.Rough), Mod.RoughDrag.Value, true);
 						break;
 					case Surface.Coal:
-						AddHandling(go, Mod.CoalGrip.Value, Mod.CoalDrag.Value, true);
+						AddHandling(go, Grip(Surface.Coal), Mod.CoalDrag.Value, true);
 						break;
 					case Surface.Yard:
-						AddHandling(go, Mod.YardGrip.Value, Mod.YardDrag.Value, true);
+						AddHandling(go, Grip(Surface.Yard), Mod.YardDrag.Value, true);
 						break;
 				}
 				triangles += mesh.triangles.Length / 3;
 			}
 			return triangles;
+		}
+
+		/// <summary>
+		/// The grip of a ground. The haulage gets more than the game's plain road (0.4.6 left it at the default 1 and it drove slippy: flat,
+		/// unbanked floors and tight bends between rock walls); the old workings and the chute are shares of it, so they keep their cost.
+		/// </summary>
+		internal static float Grip(Surface ground)
+		{
+			switch (ground)
+			{
+				case Surface.Haulage:
+					return Mod.HaulageGrip.Value;
+				case Surface.Rough:
+					return Mod.HaulageGrip.Value * Mod.RoughGrip.Value;
+				case Surface.Coal:
+					return Mod.HaulageGrip.Value * Mod.CoalGrip.Value;
+				case Surface.Yard:
+					return Mod.YardGrip.Value;
+				default:
+					return 1f;
+			}
 		}
 
 		private static void AddHandling(GameObject go, float grip, float drag, bool background)
@@ -253,6 +278,8 @@ namespace EurekaMine
 			handling.gripModifier = grip;
 			handling.resistanceModifier = drag;
 			handling.background = background;
+			// the component's default sits the car 0.1 lower than bare ground does; the mine's floors keep the plain ride height
+			handling.suspensionOffset = 0f;
 		}
 
 		private static void BuildLabels(int layer)
@@ -353,8 +380,9 @@ namespace EurekaMine
 			GameObject point = new GameObject(name);
 			point.transform.SetParent(parent, true);
 			point.transform.position = at;
-			// x: the room to the right of the point, z: to its left (PathManager.SampleControlPoints); y is the grip, left at 1
-			point.transform.localScale = new Vector3(right, 1f, left);
+			// x: the room to the right of the point, z: to its left (PathManager.SampleControlPoints); y is the grip of the ground there,
+			// which the bots plan their speed with (their cars feel the floor's HandlingModifier like the player's)
+			point.transform.localScale = new Vector3(right, Grip(Route.GroundAt(at)), left);
 			point.AddComponent<PathControlPointEditorController>();
 		}
 

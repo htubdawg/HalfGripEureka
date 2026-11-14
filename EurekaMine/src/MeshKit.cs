@@ -8,6 +8,8 @@ namespace EurekaMine
 	internal enum Surface
 	{
 		None,
+		/// <summary>The haulage and the slope: the mine's road, the grip the others are measured against.</summary>
+		Haulage,
 		Rough,
 		Coal,
 		Yard
@@ -139,12 +141,48 @@ namespace EurekaMine
 			Vector3 z = rot * Vector3.forward * (size.z * 0.5f);
 			Vector3 p000 = c - x - y - z, p100 = c + x - y - z, p010 = c - x + y - z, p110 = c + x + y - z;
 			Vector3 p001 = c - x - y + z, p101 = c + x - y + z, p011 = c - x + y + z, p111 = c + x + y + z;
-			Quad(p000, p010, p110, p100, tile);   // -z
-			Quad(p101, p111, p011, p001, tile);   // +z
-			Quad(p001, p011, p010, p000, tile);   // -x
-			Quad(p100, p110, p111, p101, tile);   // +x
-			Quad(p010, p011, p111, p110, tile);   // +y
-			Quad(p001, p000, p100, p101, tile);   // -y
+			Face(p000, p010, p110, p100, tile);   // -z
+			Face(p101, p111, p011, p001, tile);   // +z
+			Face(p001, p011, p010, p000, tile);   // -x
+			Face(p100, p110, p111, p101, tile);   // +x
+			Face(p010, p011, p111, p110, tile);   // +y
+			Face(p001, p000, p100, p101, tile);   // -y
+		}
+
+		/// <summary>
+		/// A quad given bottom-left, top-left, top-right, bottom-right as seen from its front, its texture's u running across (left to
+		/// right) and v up, as the textures are painted (clapboard laps, brick courses and corrugations level, boards and grain upright).
+		/// <see cref="Quad(Vector3, Vector3, Vector3, Vector3, float)"/> runs u up the first edge instead: before 0.4.8 boxes were drawn so,
+		/// and every wall, post and door had its texture on its side.
+		/// </summary>
+		internal void Face(Vector3 bl, Vector3 tl, Vector3 tr, Vector3 br, float tile)
+		{
+			float w = (br - bl).magnitude / tile, h = (tl - bl).magnitude / tile;
+			Quad(bl, tl, tr, br, new Vector2(0f, 0f), new Vector2(0f, h), new Vector2(w, h), new Vector2(w, 0f));
+		}
+
+		/// <summary>A triangle textured in its own plane: u along its first edge's level direction, v up (a gable end, laps level).</summary>
+		internal void FlatTri(Vector3 a, Vector3 b, Vector3 c, float tile)
+		{
+			Vector3 n = Vector3.Cross(b - a, c - a);
+			Vector3 across = Vector3.Cross(Vector3.up, n);
+			if (across.sqrMagnitude < 1e-6f)
+			{
+				across = Vector3.right;
+			}
+			across = across.normalized;
+			Vector3 upIn = Vector3.Cross(n.normalized, across);
+			Vector2 Uv(Vector3 p) => new Vector2(Vector3.Dot(p - a, across), Vector3.Dot(p - a, upIn)) / tile;
+			int i = v.Count;
+			v.Add(a);
+			v.Add(b);
+			v.Add(c);
+			uv.Add(Uv(a));
+			uv.Add(Uv(b));
+			uv.Add(Uv(c));
+			t.Add(i);
+			t.Add(i + 1);
+			t.Add(i + 2);
 		}
 
 		/// <summary>A prism with a gable: a box of footprint (w along rot's x, d along z) and wall height h, with a ridge of rise along z.</summary>
@@ -158,8 +196,8 @@ namespace EurekaMine
 			Batch r = roof ?? this;
 			r.Quad(top - x - z, top - x + z, top + z + ridge, top - z + ridge, tile);
 			r.Quad(top + x + z, top + x - z, top - z + ridge, top + z + ridge, tile);
-			Tri(top - x - z, top - z + ridge, top + x - z, tile);
-			Tri(top + x + z, top + z + ridge, top - x + z, tile);
+			FlatTri(top - x - z, top - z + ridge, top + x - z, tile);
+			FlatTri(top + x + z, top + z + ridge, top - x + z, tile);
 		}
 
 		/// <summary>A cylinder (n sides) from a to b of radius r, open ended unless caps.</summary>

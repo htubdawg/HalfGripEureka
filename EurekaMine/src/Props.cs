@@ -160,7 +160,7 @@ namespace EurekaMine
 			{
 				Timber.Box(f.P(w * 0.08f, 0.7f + (k / 3) * 1.4f, 6f + (k % 3) * 1.5f), new Vector3(w * 0.7f, 1.3f, 1.3f), f.Q, 4f);
 			}
-			Batch bags = Get("rock dust bags", Tex.Enamel, new Color(0.92f, 0.92f, 0.9f));
+			Batch bags = Get("rock dust bags", Tex.Enamel, new Color(0.92f, 0.92f, 0.9f), true);
 			for (int k = 0; k < 12; k++)
 			{
 				bags.Box(f.P(-w * 0.33f + (k % 2) * 2.6f, 0.65f + (k / 4) * 1.3f, 3f + (k / 2 % 2) * 1.8f), new Vector3(2.4f, 1.2f, 1.6f), f.R((k * 13) % 9 - 4), 2f);
@@ -294,12 +294,13 @@ namespace EurekaMine
 				float ta = r.CeilAt(i) - (Mine.Height - Mine.WallTop), tc = r.CeilAt(i + 1) - (Mine.Height - Mine.WallTop);
 				if (SolidWall(r, i, 1f) && SolidWall(r, i + 1, 1f))
 				{
-					// the cable hangs from a hook at every point and sags between
-					Vector3 h0 = a + ra * (ha + 0.25f) + Vector3.up * (ta - 2.5f), h1 = c + rc * (hc + 0.25f) + Vector3.up * (tc - 2.5f);
-					Vector3 mid = (h0 + h1) * 0.5f + Vector3.down * 0.9f;
-					cable.Cylinder(h0, mid, 0.3f, 4, 2f, false);
-					cable.Cylinder(mid, h1, 0.3f, 4, 2f, false);
-					DarkSteel.Box(h0 + Vector3.up * 0.4f, new Vector3(0.3f, 1f, 0.3f), Quaternion.identity, 1f);
+					// the cable hangs a little behind the guard line from a steel hanger at every point, each hanger bolted into the rough
+					// rib behind it (0.4.7's hooks stood in the air, up to ten units clear of the rock), and sags a little between them
+					Vector3 h0 = a + ra * (ha + 0.6f) + Vector3.up * (ta - 2.5f), h1 = c + rc * (hc + 0.6f) + Vector3.up * (tc - 2.5f);
+					Vector3 mid = (h0 + h1) * 0.5f + Vector3.down * 0.45f;
+					cable.Cylinder(h0, mid, 0.3f, 5, 2f, false);
+					cable.Cylinder(mid, h1, 0.3f, 5, 2f, false);
+					Hanger(r, i, ra, h0);
 				}
 				if (trolley && !Route.InsideOther(r, a, -2f))
 				{
@@ -315,33 +316,98 @@ namespace EurekaMine
 		}
 
 		/// <summary>
-		/// Reflective chevron boards on the outside wall of every bend, pointing the way it goes: they glow a little, so a bend reads in
-		/// the dark before the headlights reach it.
+		/// A cable hanger at point i on the right rib: a J-hook under the cable on a steel arm running back level into the rock behind (the
+		/// rib's surface at that height, plus a little into it), with a plate where it is bolted.
+		/// </summary>
+		private static void Hanger(Road r, int i, Vector3 right, Vector3 at)
+		{
+			Vector3 rock = Mine.Rib(r, i, 1f, 5);
+			float back = Mathf.Max(0.8f, Vector3.Dot(rock - at, right)) + 0.4f;
+			Quaternion q = Quaternion.LookRotation(right, Vector3.up);
+			Vector3 arm = at + Vector3.up * 0.75f;
+			Batch steel = DarkSteel;
+			// the arm from the rock to over the cable's road side, the hook's stem down past the cable, its foot under it, its lip
+			steel.Box(arm + right * ((back - 0.5f) * 0.5f), new Vector3(0.22f, 0.22f, back + 0.5f), q, 1f);
+			steel.Box(at + Vector3.up * 0.15f - right * 0.45f, new Vector3(0.18f, 1.3f, 0.18f), q, 1f);
+			steel.Box(at + Vector3.down * 0.42f, new Vector3(0.18f, 0.18f, 1.05f), q, 1f);
+			steel.Box(at + right * 0.45f + Vector3.down * 0.22f, new Vector3(0.18f, 0.45f, 0.18f), q, 1f);
+			steel.Box(arm + right * (back - 0.35f), new Vector3(0.9f, 1.1f, 0.15f), q, 1f);
+		}
+
+		/// <summary>
+		/// Reflective chevron boards on the outside wall of the sharper bends, pointing the way it goes, a few to a bend round its apex
+		/// (0.4.7 put one every second point of every bend over 12 degrees: far too many), each on two steel brackets bolted back into the
+		/// rough rib (they hung flat on the guard line, in the air in front of the rock). They glow a little, so a bend reads in the dark.
 		/// </summary>
 		private static void Chevrons(Road r)
 		{
 			Batch board = Get("chevrons", Tex.Chevron, Color.white);
-			board.Emission = new Color(0.45f, 0.35f, 0.05f);
+			board.Emission = new Color(0.3f, 0.23f, 0.03f);
 			int start = r == Route.Runin ? RouteData.RuninMouth + 2 : 2;
 			int last = r.Closed ? r.Count : r.Count - 3;
-			for (int i = start; i < last; i += 2)
+			// the bends: runs of points turning over 22 degrees across five points, all the same way
+			List<int[]> bends = new List<int[]>();
+			int from = -1;
+			float way = 0f;
+			for (int i = start; i <= last; i++)
 			{
-				Vector3 f0 = r.Forward(i - 2), f1 = r.Forward(i + 2);
-				float turn = Vector3.Angle(f0, f1);
-				if (turn < 12f)
+				float turn = 0f, dir = 0f;
+				if (i < last)
+				{
+					Vector3 f0 = r.Forward(i - 2), f1 = r.Forward(i + 2);
+					turn = Vector3.Angle(f0, f1);
+					dir = Vector3.Cross(f0, f1).y < 0f ? 1f : -1f;
+				}
+				bool bending = turn >= 22f;
+				if (from >= 0 && (!bending || dir != way))
+				{
+					bends.Add(new[] { from, i - 1 });
+					from = -1;
+				}
+				if (bending && from < 0)
+				{
+					from = i;
+					way = dir;
+				}
+			}
+			foreach (int[] bend in bends)
+			{
+				int length = bend[1] - bend[0] + 1;
+				if (length < 3)
 				{
 					continue;
 				}
-				bool left = Vector3.Cross(f0, f1).y < 0f;
-				float outer = left ? 1f : -1f;
-				if (!SolidWall(r, i, outer) || r.HalfAt(i) > r.Half + 1f)
+				int count = Mathf.Clamp(length / 4 + 1, 2, 4);
+				float apex = (bend[0] + bend[1]) * 0.5f;
+				for (int n = 0; n < count; n++)
 				{
-					continue;
+					int i = Mathf.RoundToInt(apex + (n - (count - 1) * 0.5f) * 4f);
+					Vector3 f0 = r.Forward(i - 2), f1 = r.Forward(i + 2);
+					float outer = Vector3.Cross(f0, f1).y < 0f ? 1f : -1f;
+					if (!SolidWall(r, i, outer) || r.HalfAt(i) > r.Half + 1f)
+					{
+						continue;
+					}
+					Vector3 right = r.Right(i);
+					Vector3 normal = -right * outer;
+					Vector3 at = r.At(i) + right * outer * (r.HalfAt(i) + 0.35f) + Vector3.up * 6f;
+					Board(board, at, normal, r.Forward(i), 6f, 4.5f);
+					// the board (under the power cable) on a steel backing and two brackets back to the rock behind it (rib rows 3 and 4)
+					Quaternion q = Quaternion.LookRotation(-normal, Vector3.up);
+					DarkSteel.Box(at - normal * 0.12f, new Vector3(6.2f, 4.7f, 0.15f), q, 1f);
+					foreach (int row in new[] { 3, 4 })
+					{
+						Vector3 rock = Mine.Rib(r, i, outer, row);
+						float y = row == 3 ? -1.4f : 1.4f;
+						Vector3 bracketAt = at + Vector3.up * y;
+						float back = Mathf.Max(0.3f, Vector3.Dot(rock - bracketAt, -normal)) + 0.4f;
+						foreach (float along in new[] { -2f, 2f })
+						{
+							Vector3 o = bracketAt + r.Forward(i) * along;
+							DarkSteel.Box(o - normal * (back * 0.5f + 0.1f), new Vector3(0.25f, 0.25f, back), q, 1f);
+						}
+					}
 				}
-				Vector3 f = r.Forward(i);
-				Vector3 normal = -r.Right(i) * outer;
-				Vector3 at = r.At(i) + r.Right(i) * outer * (r.HalfAt(i) - 0.15f) + Vector3.up * 7.5f;
-				Board(board, at, normal, f, 6f, 4.5f);
 			}
 		}
 
@@ -472,7 +538,7 @@ namespace EurekaMine
 				Timber.Box(yard + yq * new Vector3(-1.5f + (k % 2) * 1.6f, 0.7f + (k / 2) * 1.4f, 0f), new Vector3(1.3f, 1.3f, 24f), yq, 4f);
 			}
 			Crib(yard + yq * new Vector3(-2f, 0f, 18f), yq, 7);
-			Batch bags = Get("rock dust bags", Tex.Enamel, new Color(0.92f, 0.92f, 0.9f));
+			Batch bags = Get("rock dust bags", Tex.Enamel, new Color(0.92f, 0.92f, 0.9f), true);
 			for (int k = 0; k < 18; k++)
 			{
 				bags.Box(yard + yq * new Vector3(-1f + (k % 3) * 2.5f, 0.65f + (k / 6) * 1.3f, -16f + (k / 3 % 2) * 1.8f), new Vector3(2.4f, 1.2f, 1.6f), yq, 2f);

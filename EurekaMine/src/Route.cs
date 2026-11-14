@@ -157,10 +157,10 @@ namespace EurekaMine
 			{
 				return;
 			}
-			Main = new Road("haulage", RouteData.MainX, RouteData.MainY, RouteData.MainZ, RouteData.MainWidth, true, Surface.None, -1, -1);
+			Main = new Road("haulage", RouteData.MainX, RouteData.MainY, RouteData.MainZ, RouteData.MainWidth, true, Surface.Haulage, -1, -1);
 			Seam = new Road("upper seam", RouteData.SeamX, RouteData.SeamY, RouteData.SeamZ, RouteData.SeamWidth, false, Surface.Rough, RouteData.SeamFork, RouteData.SeamJoin);
 			Chute = new Road("coal chute", RouteData.ChuteX, RouteData.ChuteY, RouteData.ChuteZ, RouteData.ChuteWidth, false, Surface.Coal, RouteData.ChuteFork, RouteData.ChuteJoin);
-			Runin = new Road("slope", RouteData.RuninX, RouteData.RuninY, RouteData.RuninZ, RouteData.RuninWidth, false, Surface.None, -1, RouteData.RuninJoin);
+			Runin = new Road("slope", RouteData.RuninX, RouteData.RuninY, RouteData.RuninZ, RouteData.RuninWidth, false, Surface.Haulage, -1, RouteData.RuninJoin);
 			All.Clear();
 			All.Add(Main);
 			All.Add(Seam);
@@ -175,9 +175,72 @@ namespace EurekaMine
 			Main.Widen(-12, 18, 36f, 36f, 6);
 		}
 
+		/// <summary>
+		/// Which ground a point on the roads stands on: the haulage's wherever its floor is (a branch still on the lap's floor drives like
+		/// the lap), else the branch's, else the slope's. The bots' waypoints carry it as their grip, so they plan their speed for it.
+		/// </summary>
+		internal static Surface GroundAt(Vector3 p)
+		{
+			foreach (Road r in new[] { Main, Seam, Chute, Runin })
+			{
+				int i = r.NearestFlat(p, out float dist);
+				if (dist < r.HalfW[i] && Mathf.Abs(p.y - r.P[i].y) < 4f)
+				{
+					return r.Ground;
+				}
+			}
+			return Surface.Haulage;
+		}
+
 		internal static int Mark(string name)
 		{
 			return Marks.TryGetValue(name, out int i) ? i : 0;
+		}
+
+		/// <summary>
+		/// Is p inside some other road's drivable space: within its half width less the margin, over its floor, and under its smooth
+		/// bore's arch (ribs to <see cref="Mine.WallTop"/>, an ellipse to the roof) less the margin? At forks and joins each road's rough
+		/// rock, its roof above all, carried on across the other road's space, hanging below that road's roof: a sheet of rock across the
+		/// road seen from one way and culled (see-through) from the other (owner, 0.4.7).
+		/// </summary>
+		internal static bool InDrive(Road self, Vector3 p, float margin)
+		{
+			foreach (Road r in All)
+			{
+				if (r == self)
+				{
+					continue;
+				}
+				int n = r.Count, last = r.Closed ? n : n - 1;
+				for (int i = 0; i < last; i++)
+				{
+					Vector3 a = r.P[i], c = r.P[(i + 1) % n];
+					if ((a - p).sqrMagnitude > 3600f)
+					{
+						continue;
+					}
+					Vector3 ab = c - a, ap = p - a;
+					ab.y = 0f;
+					ap.y = 0f;
+					float len2 = ab.sqrMagnitude;
+					float f = len2 > 1e-6f ? Mathf.Clamp01(Vector3.Dot(ap, ab) / len2) : 0f;
+					Vector3 q = Vector3.Lerp(a, c, f);
+					float dx = p.x - q.x, dz = p.z - q.z, dy = p.y - q.y;
+					float h = Mathf.Lerp(r.HalfAt(i), r.HalfAt(i + 1), f), ceil = Mathf.Lerp(r.CeilAt(i), r.CeilAt(i + 1), f);
+					float lat = Mathf.Sqrt(dx * dx + dz * dz);
+					if (dy < -1f || lat > h - margin)
+					{
+						continue;
+					}
+					float s = lat / h;
+					float roof = Mine.WallTop + (ceil - Mine.WallTop) * Mathf.Sqrt(Mathf.Max(0f, 1f - s * s));
+					if (dy < roof - margin)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		/// <summary>
