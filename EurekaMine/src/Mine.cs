@@ -1161,7 +1161,8 @@ namespace EurekaMine
 						// a heap of broken rock against the rib, its middle behind the guard so only its toe shows
 						float s = old ? 3.5f + (float)rng.NextDouble() * 3f : 2f + (float)rng.NextDouble() * 2.5f;
 						Vector3 at = edge + r.Right(i) * side * (s * 0.55f) + r.Forward(i) * (float)(rng.NextDouble() * 8.0);
-						rock.Heap(at, s, s * 0.55f, 7, 2, s * 0.35f, rng, 3f);
+						// on a banked floor its base sinks by the lean over its width, so no toe hangs over the floor falling away
+						rock.Heap(at - Vector3.up * (s * 1.2f * Mathf.Abs(r.BankAt(i))), s, s * 0.55f, 7, 2, s * 0.35f, rng, 3f);
 					}
 					if (rng.NextDouble() < (old ? 0.6 : 0.35))
 					{

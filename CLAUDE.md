@@ -144,7 +144,8 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   0.4 degrees between neighbours at worst (`Road.Floor`, `Mine.FloorPanel`). Banks: `layout.py` bakes a lean per point,
   `BANK_GAIN / radius` degrees (800; the spiral 7, the second switchback and the dip 10, at most `BANK_MAX` 10), curvature averaged
   over 64 units, eased to flat over 64 at forks and joins (a branch on the lap's floor), the pit bottom chamber, the plane (runaway
-  cars), the chute's doors and the surface; so the first switchback (on the chute's fork) stays flat. Steepest along a banked edge
+  cars), the chute's doors and the whole run in (its one bend, 3 degrees, runs into the pit bottom merge, where a lean uncovered
+  the back of the haulage's rock); rubble heaps sink by the lean. So the first switchback (on the chute's fork) stays flat. Steepest along a banked edge
   15.9% (the dip's S-bend; the road's own steepest 10.8%). The bore, guard, posts, rails, puddles, rubble, passages, cable, chevrons,
   signs and coal chutes follow it. Checked: layout clearance 0; compiles with no warnings; preview before/after of the spiral, hairpin
   and dip; rock in the road unchanged (462: the chamber's ends and the dust bags); hole scan (see below). Not checked: in game (how it

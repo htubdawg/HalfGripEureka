@@ -91,7 +91,7 @@ def build():
 # ---- banking ---------------------------------------------------------------------------------------------------------------
 # The floor leans into the bends (the outside higher), more the tighter the bend: BANK_GAIN / radius degrees, at most BANK_MAX. Flat
 # wherever two floors are one floor (forks and joins: a branch on the lap's floor must have the lap's), in the pit bottom chamber,
-# on the plane (the runaway cars' track) and at the coal chute's ventilation doors (both built level), and on the surface.
+# on the plane (the runaway cars' track) and at the coal chute's ventilation doors (both built level), and on the run in.
 
 BANK_GAIN = 800.0   # degrees times units: a 115-unit bend (the spiral) about 7 degrees
 BANK_MAX = 10.0     # degrees, at the tightest bends (the switchbacks, the dip)
@@ -139,7 +139,9 @@ def bank(road, roads):
 		flat.append((-1e9, 170))
 		flat.append((road.length - 170, 1e9))
 		if road.name == "runin":
-			flat.append((-1e9, road.marks["Drift mouth"] + 60))
+			# level all the way: its one bend (gentle, 3 degrees) runs into the merge at the pit bottom, where a lean uncovered the back
+			# of the haulage's rock
+			flat.append((-1e9, 1e9))
 		if road.name == "chute":
 			for f in (0.3, 0.62):      # Hazards.Doors: the doors at these shares of the chute's points
 				s = round((n - 1) * f) * road.length / (n - 1)
