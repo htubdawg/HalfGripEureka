@@ -292,6 +292,12 @@ namespace EurekaMine
 			return at + (right * n.x + Vector3.up * n.y) * back;
 		}
 
+		/// <summary>The rough rib's surface on one side (-1 left, 1 right) at a rib row (5: 10 over the floor), at fractional point t.</summary>
+		internal static Vector3 Rib(Road r, float t, float side, int row)
+		{
+			return Rock(r, t, side < 0f ? row : SectionCount - 1 - row);
+		}
+
 		/// <summary>The crown of the bore at point i: where the lamp wire runs.</summary>
 		internal static Vector3 Crown(Road r, int i)
 		{
@@ -458,6 +464,8 @@ namespace EurekaMine
 
 				Vector3 up = Vector3.up;
 				bool leftOpen = Route.InsideOther(r, (aL + cL) * 0.5f + up * 2f, 1.5f);
+				// another road close by (a fork or join): only then is each rock quad tested against its space
+				bool nearOther = Route.InsideOther(r, a + up * 4f, -24f);
 				bool rightOpen = Route.InsideOther(r, (aR + cR) * 0.5f + up * 2f, 1.5f);
 				Niche nl = NicheAt(niches, r, i, -1f), nr = NicheAt(niches, r, i, 1f);
 				// the floor runs on under the rock to its foot (drawn only), so no gap shows where the rib stands back from the guard
@@ -491,9 +499,14 @@ namespace EurekaMine
 						bool skip = leftRib && leftOpen || rightRib && rightOpen;
 						// a side passage opens the rib's rows below PassageHigh; the guard runs across it all the same
 						bool passage = row >= 0 && row < PassageRow && (leftRib ? nl != null : nr != null);
+						Vector3 p00 = Rock(r, t0, k), p01 = Rock(r, t0, k + 1), p11 = Rock(r, t1, k + 1), p10 = Rock(r, t1, k);
+						// at a fork or join, rock standing in the other road's space is left out (that road's own bore is round it)
+						if (!skip && !passage && (leftOpen || rightOpen || nearOther) && Route.InDrive(r, (p00 + p01 + p11 + p10) * 0.25f, 0.5f))
+						{
+							skip = true;
+						}
 						if (!skip && !passage)
 						{
-							Vector3 p00 = Rock(r, t0, k), p01 = Rock(r, t0, k + 1), p11 = Rock(r, t1, k + 1), p10 = Rock(r, t1, k);
 							if (arch)
 							{
 								roofRock.Quad(p00, p01, p11, p10, new Vector2(u0, v0), new Vector2(u1, v0), new Vector2(u1, v1), new Vector2(u0, v1));
@@ -781,15 +794,20 @@ namespace EurekaMine
 			// the passage's own section: ribs to PassageHigh and a low arch; its right (seen walking in) is across the opening
 			Vector3 side = Vector3.Cross(Vector3.up, o).normalized;
 			float h = nc.Width * 0.5f, high = nc.High, rise = 3f;
-			const int ribRows = 5, archSteps = 6, across = 2 * ribRows + archSteps - 1, steps = 10;
-			int[][] ids = new int[steps + 1][];
+			// as fine as the bore (0.4.7's passages had 5 rows to a rib, 6 to the arch and shared, smooth-shaded vertices: they read as
+			// flat panels, "very 2-dimensional")
+			const int ribRows = 8, archSteps = 9, across = 2 * ribRows + archSteps - 1;
+			int steps = Mathf.Max(8, Mathf.RoundToInt(nc.Depth / 1.8f));
+			Vector3[][] pos = new Vector3[steps + 1][];
+			float[][] us = new float[steps + 1][];
 			Vector3[] centres = new Vector3[steps + 1];
 			for (int s = 0; s <= steps; s++)
 			{
 				float d = nc.Depth * s / steps;
 				Vector3 centre = nc.Mouth + o * d;
 				centres[s] = centre;
-				ids[s] = new int[across];
+				pos[s] = new Vector3[across];
+				us[s] = new float[across];
 				for (int k = 0; k < across; k++)
 				{
 					// the left rib's rows, the arch, the right rib's rows (as the bore's section, smaller)
@@ -828,28 +846,52 @@ namespace EurekaMine
 					at.y += Rise(at);
 					// at the mouth the passage meets the rib's opening exactly; deeper in it is as rough as the bore
 					float back = s == 0 ? 0f : Back(at, old ? 1.35f : 1f) * (s == 1 ? 0.6f : 1f);
-					ids[s][k] = rock.Vertex(at + (side * normal.x + Vector3.up * normal.y) * back, new Vector2(k / 6f, d / 24f));
+					pos[s][k] = at + (side * normal.x + Vector3.up * normal.y) * back;
+					// on the ribs u is the height over the floor, as on the bore's, so the coal band runs on into the passage
+					us[s][k] = k < ribRows || k >= across - ribRows ? (height + 1.5f) / 24f : 0.5f + (k - ribRows) / 9f;
 				}
 			}
+			float V(int st) => nc.Depth * st / steps / 24f;
 			for (int s = 0; s < steps; s++)
 			{
 				for (int k = 0; k < across - 1; k++)
 				{
-					// seen from inside the passage (as the bore's ribs are)
-					rock.QuadIndex(ids[s][k], ids[s][k + 1], ids[s + 1][k + 1], ids[s + 1][k]);
+					// seen from inside the passage (as the bore's ribs are), each face its own (flat-shaded, broken like the bore's rock)
+					rock.Quad(pos[s][k], pos[s][k + 1], pos[s + 1][k + 1], pos[s + 1][k],
+						new Vector2(us[s][k], V(s)), new Vector2(us[s][k + 1], V(s)), new Vector2(us[s + 1][k + 1], V(s + 1)), new Vector2(us[s + 1][k], V(s + 1)));
 				}
 			}
-			// the face at the end: a fan to a point pushed back into the rock
+			// the face at the end: rings drawn in toward a point pushed back into the rock, each pushed back and broken by the rock's
+			// noise, so it is a rough face rather than a fan of big flat triangles; the ring closes along the floor (0.4.4 and before had
+			// no face there: a triangular hole from the floor to its middle in every passage)
 			Vector3 end = centres[steps] + Vector3.up * (high * 0.5f);
 			end.y += Rise(end);
-			int tip = rock.Vertex(end + o * (2f + 3f * Noise(end, 5f, 7)), new Vector2(1f, nc.Depth / 24f + 0.2f));
-			for (int k = 0; k < across - 1; k++)
+			Vector3 tip = end + o * (2.5f + 3f * Noise(end, 5f, 7));
+			// the face's texture as the ribs': u the height over the floor (the coal band runs level across it), v across the passage
+			Vector2 FaceUv(Vector3 q) => new Vector2((q.y - nc.Mouth.y - Rise(q) + 1.5f) / 24f, Vector3.Dot(q - nc.Mouth, side) / 24f);
+			const int rings = 3;
+			Vector3[] prev = pos[steps];
+			for (int j = 1; j <= rings; j++)
 			{
-				rock.Triangle(ids[steps][k], ids[steps][k + 1], tip);
+				float f = (float)j / (rings + 1);
+				Vector3[] ring = new Vector3[across];
+				for (int k = 0; k < across; k++)
+				{
+					Vector3 q = Vector3.Lerp(pos[steps][k], tip, f);
+					ring[k] = q + o * (Back(q, old ? 1.35f : 1f) * 0.5f * (1f - f));
+				}
+				for (int k = 0; k < across; k++)
+				{
+					int k1 = (k + 1) % across;
+					rock.Quad(prev[k], prev[k1], ring[k1], ring[k], FaceUv(prev[k]), FaceUv(prev[k1]), FaceUv(ring[k1]), FaceUv(ring[k]));
+				}
+				prev = ring;
 			}
-			// and along the floor, from the right rib's foot back to the left's: without it the face had a triangular hole from the floor
-			// to its middle in every passage, which showed through the map (0.4.4 and before)
-			rock.Triangle(ids[steps][across - 1], ids[steps][0], tip);
+			for (int k = 0; k < across; k++)
+			{
+				int k1 = (k + 1) % across;
+				rock.Quad(prev[k], prev[k1], tip, tip, FaceUv(prev[k]), FaceUv(prev[k1]), FaceUv(tip), FaceUv(tip));
+			}
 			// the floor runs on under the rock all round (the rough rock stands back from the passage's line by up to several units, and
 			// 0.4.3's floor, cut to the opening, left gaps at its foot to see through), from a little inside the road, and slopes along the
 			// opening with the road (a flat floor at the lower corner left a step and a crack at the higher one); a hair under the road's

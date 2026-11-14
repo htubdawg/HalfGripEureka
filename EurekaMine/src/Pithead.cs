@@ -22,8 +22,7 @@ namespace EurekaMine
 			Breaker(b);
 			CulmBanks(b, rng);
 			Siding(b);
-			Houses(b, rng);
-			Church(b);
+			Village.Build(b, rng);
 			Headframe(b);
 			Stack(b);
 			YardDressing(b);
@@ -257,71 +256,6 @@ namespace EurekaMine
 				steel.Box(new Vector3(x - 5f, 3.2f, z), new Vector3(7f, 3f, 7f), Quaternion.Euler(0f, 0f, 20f), 6f);
 				steel.Box(new Vector3(x + 5f, 3.2f, z), new Vector3(7f, 3f, 7f), Quaternion.Euler(0f, 0f, -20f), 6f);
 				coal.Heap(new Vector3(x, 12.9f, z), 4.8f, 2.4f, 8, 2, 0f, null, 3f);
-			}
-		}
-
-		/// <summary>Two rows of company double houses (two homes under one roof, a chimney each end), and their outhouses.</summary>
-		private static void Houses(Dictionary<string, Batch> b, System.Random rng)
-		{
-			Color[] paint = { new Color(0.86f, 0.84f, 0.78f), new Color(0.72f, 0.36f, 0.30f), new Color(0.78f, 0.74f, 0.52f), new Color(0.55f, 0.62f, 0.66f) };
-			Batch roof = Get(b, "house roofs", Tex.Shingle, Color.white);
-			Batch brick = Get(b, "chimneys", Tex.Brick, Color.white);
-			Batch porch = Get(b, "porches", Tex.Timber, new Color(0.85f, 0.85f, 0.85f));
-			for (int row = 0; row < 2; row++)
-			{
-				float z = 300f + row * 90f;
-				Quaternion facing = row == 0 ? Quaternion.identity : Quaternion.Euler(0f, 180f, 0f);
-				for (int k = 0; k < 9; k++)
-				{
-					float x = -2240f + k * 64f + (row == 1 ? 22f : 0f);
-					Batch walls = Get(b, "houses " + (k + row) % paint.Length, Tex.Clapboard, paint[(k + row) % paint.Length], true);
-					walls.Wall = true;
-					walls.Gable(new Vector3(x, 0f, z), 34f, 22f, 20f, 10f, facing, 8f, roof);
-					brick.Box(new Vector3(x - 15f, 28f, z), new Vector3(3f, 12f, 3f), Quaternion.identity, 3f);
-					brick.Box(new Vector3(x + 15f, 28f, z), new Vector3(3f, 12f, 3f), Quaternion.identity, 3f);
-					float front = row == 0 ? -11f : 11f;
-					porch.Box(new Vector3(x, 8f, z + front * 1.35f), new Vector3(30f, 0.8f, 7f), Quaternion.identity, 4f);
-					porch.Box(new Vector3(x, 0.6f, z + front * 1.35f), new Vector3(30f, 1.2f, 7f), Quaternion.identity, 4f);
-					float back = row == 0 ? 34f : -34f;
-					walls.Gable(new Vector3(x + (float)(rng.NextDouble() * 10 - 5), 0f, z + back), 5f, 5f, 8f, 2f, facing, 4f, roof);
-				}
-			}
-		}
-
-		/// <summary>The patch's church: a Slavic onion dome on its tower, as the immigrant miners built them.</summary>
-		private static void Church(Dictionary<string, Batch> b)
-		{
-			Batch walls = Get(b, "church", Tex.Clapboard, new Color(0.95f, 0.93f, 0.88f), true);
-			walls.Wall = true;
-			Batch roof = Get(b, "church roof", Tex.Shingle, new Color(0.7f, 0.75f, 0.8f));
-			Batch dome = Get(b, "domes", Tex.Plain, new Color(0.45f, 0.62f, 0.55f));
-			Vector3 c = new Vector3(-2050f, 0f, 560f);
-			walls.Gable(c, 30f, 56f, 28f, 14f, Quaternion.identity, 8f, roof);
-			walls.Box(c + new Vector3(0f, 26f, -34f), new Vector3(14f, 52f, 14f), Quaternion.identity, 8f);
-			Onion(dome, c + new Vector3(0f, 52f, -34f), 8f);
-			Onion(dome, c + new Vector3(0f, 42f, 20f), 5f);
-			Batch cross = Get(b, "crosses", Tex.Plain, new Color(0.85f, 0.7f, 0.3f));
-			cross.Box(c + new Vector3(0f, 72f, -34f), new Vector3(0.8f, 8f, 0.8f), Quaternion.identity, 2f);
-			cross.Box(c + new Vector3(0f, 73.5f, -34f), new Vector3(4.5f, 0.7f, 0.7f), Quaternion.identity, 2f);
-		}
-
-		/// <summary>An onion dome: rings swelling out and drawn in to a point.</summary>
-		private static void Onion(Batch b, Vector3 baseAt, float r)
-		{
-			float[] radius = { 0.8f, 1.15f, 1.25f, 1.1f, 0.75f, 0.35f, 0.08f };
-			float[] height = { 0f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.2f };
-			const int n = 12;
-			for (int k = 0; k < radius.Length - 1; k++)
-			{
-				for (int i = 0; i < n; i++)
-				{
-					float a0 = i * Mathf.PI * 2f / n, a1 = (i + 1) * Mathf.PI * 2f / n;
-					Vector3 p00 = baseAt + new Vector3(Mathf.Cos(a0) * radius[k] * r, height[k] * r, Mathf.Sin(a0) * radius[k] * r);
-					Vector3 p01 = baseAt + new Vector3(Mathf.Cos(a1) * radius[k] * r, height[k] * r, Mathf.Sin(a1) * radius[k] * r);
-					Vector3 p10 = baseAt + new Vector3(Mathf.Cos(a0) * radius[k + 1] * r, height[k + 1] * r, Mathf.Sin(a0) * radius[k + 1] * r);
-					Vector3 p11 = baseAt + new Vector3(Mathf.Cos(a1) * radius[k + 1] * r, height[k + 1] * r, Mathf.Sin(a1) * radius[k + 1] * r);
-					b.Quad(p00, p10, p11, p01, 4f);
-				}
 			}
 		}
 

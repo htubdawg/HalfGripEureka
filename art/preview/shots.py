@@ -39,6 +39,10 @@ shots = [
     dict(name="19_upper_gangway", **inside("haulage", 440, 6, 9), opts=dark),
     dict(name="21_plane_head_spur", **inside("haulage", 86, 4, 9), opts=dark),
     dict(name="22_plane_foot_spur", **inside("haulage", 124, 6, 9), opts=dark),
+    dict(name="30_village", eye=[-1700, 40, 140], at=[-2000, 10, 360], opts=dict(fog=2500)),
+    dict(name="31_house_close", eye=[-1940, 14, 240], at=[-1984, 14, 300], opts=dict(fog=2500)),
+    dict(name="32_church", eye=[-2000, 22, 440], at=[-2050, 40, 545], opts=dict(fog=2500)),
+    dict(name="33_house_backs", eye=[-1900, 30, 345], at=[-2000, 10, 340], opts=dict(fog=2500)),
     dict(name="20_slope_lower", **inside("slope", 120, 8, 9), opts=dark),
 ]
 json.dump(shots, open(os.path.join(work, "shots.json"), "w"))

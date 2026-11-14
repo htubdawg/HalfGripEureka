@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.7 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.8 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -39,7 +39,8 @@ The race starts in the pithead yard, runs down a slope into the mine, and every 
 | `MeshKit.cs`, `Textures.cs` | `Batch` (one mesh per texture/tint/behaviour), `Mats` (materials from the scene's ground shader), textures painted in code |
 | `Mine.cs` | Each road as one rough rock bore (`Shape`: straight ribs and an elliptical arch; `Rock`: that shape pushed back by ridged noise, `Sub` columns per 8-unit step, flat-shaded) round an invisible smooth guard of the same shape; side passages as short rough bores (`Niche`, `BuildNiche`); occasional posts; bulbs on the crown wire; puddles; rails; rubble heaps; the drift portal; the start line |
 | `Props.cs` | What fills the niches (brattice, stopping, mine car, supplies, barricade, pump; locomotive and car, man trip), utilities on the walls, chevrons on the bends, the few signs, the pit bottom's shaft station and loading tracks |
-| `Pithead.cs` | The surface: ground, hill with highwalls, breaker, culm banks, siding, houses, church, headframe, boiler house |
+| `Pithead.cs` | The surface: ground, hill with highwalls, breaker, culm banks, siding, headframe, boiler house |
+| `Village.cs` | The patch town: company double houses (foundation, clapboard, trimmed windows and doors, roof slab with eaves, one chimney, porch, coal sheds) and the white clapboard steeple church; after the Open World mod's `Buildings.cs` |
 | `SceneBuilder.cs` | Orchestrates the build; the lap line and the four bot paths; the grid; labels |
 | `RunIn.cs` | Lap 1's run in: the lap-counter prefix, the player reset on the slope, the bots' slope path and handover, the gate |
 | `Glow.cs` | The bulbs' light painted at build time: per-vertex light (falloff, angle, open-air test against the roads and side passages) on a twin of every lit surface near a bulb, cut finer where the light changes |
@@ -107,6 +108,9 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   `opts.pool` drawing 0.4.1's real-light pool instead; `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
   lacks, the preview build fails: add it to `Stubs.cs` with Unity's meaning (e.g. `Mathf.SmoothStep` interpolates). Add a shot to
   `art/preview/shots.py` for whatever changed, look at it, and send the owner pictures. Run with `TMPDIR` set to the scratchpad.
+- **Rock in the road:** `INTRUDE=1 dotnet <work>/bin/preview.dll scene.json` (after a `run.sh`) lists drawn rock standing inside a
+  road's drivable space (`intrude.json`). It must find none but the pit bottom chamber's narrowing ends (haulage 18 to 20, 798 to
+  800: real headwalls) and the rock dust bags in the chamber (solid). Run it after any change to the rock, forks or joins.
 - **Holes:** `HOLES=1 art/preview/run.sh <outdir>` also drives the camera through every road at car-eye height, looking four ways
   against a magenta sky with no fog, and counts the views underground where magenta shows (`holes/holes.json`, pictures of the worst;
   `HOLES=2` for every second point). Run it after any change to the rock, passages, floors or junctions: it must report 0.
@@ -122,6 +126,23 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.8** (owner, in game on 0.4.7, with screenshots; the light changes not yet tried): (1) houses "look bad and have 2 chimneys",
+  the church "some sort of weird mosque or orthodox style": `Village.cs` builds company double houses (stone foundation, clapboard
+  with level laps, trimmed sash windows and panelled doors, a roof slab with eaves, fascia, barge boards and soffit, one chimney on
+  the ridge, a full-width porch on posts with rails and steps, a coal shed each behind) and a white clapboard church (lancet
+  windows, a bell tower over the doors with a louvred belfry, a shingled spire and a cross). `Batch.Box` now maps u across and v up
+  (`Face`): every box had its texture on its side (clapboard and grain ran up the walls), and gables are textured in their own plane
+  (`FlatTri`; they were diagonal). (2) Rock "visible 1-way and cutting out into the track": at every fork and join each road's rock,
+  its arch above all, ran on across the other road's space below that road's roof (891 triangles); quads standing in another road's
+  drivable space are now left out (`Route.InDrive`). The preview's `INTRUDE=1` finds them; 0 left at forks and joins, hole scan
+  unchanged. (3) The power cable's hooks stood in the air up to 10 units clear of the rock: each point's hanger is now a J-hook on an
+  arm back into the rib (`Props.Hanger`, `Mine.Rib`). (4) Side passages "very 2-dimensional": flat-shaded faces like the bore's, 8
+  rows to a rib and 9 to the arch, a step every 1.8, the end face in rough rings with the coal band running level across it.
+  (5) Chevrons: only bends over 22 degrees across five points, 2 to 4 boards round each apex (19 in all; about 170 before), each on a
+  steel backing and brackets back to the rock, below the cable. Also: the pit bottom's rock dust bags are solid. Checked: compiles
+  with no warnings; preview sheets of the village, the passages, the forks before and after, the chevrons and cable; hole scan 0
+  new. Not checked: in game.
 
 - **0.4.7** (owner, in game: "still feels too well lit and the track surface seems too slippy"). Light: the bulbs' paint was
   strength 7.5, half distance 8, which lit the whole bore between bulbs; now 4 and 6 (`Glow.BaseStrength`, `Near`), so each bulb

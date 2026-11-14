@@ -26,6 +26,7 @@ internal static class Program
 		// DARK="ambient scale,fog start,fog end" tries other underground ambient and haze without editing Glow.cs
 		string dk = Environment.GetEnvironmentVariable("DARK");
 		if (dk != null) { var dp = dk.Split(','); float k = float.Parse(dp[0]); Dark.Sky *= k; Dark.Equator *= k; Dark.Ground *= k; Dark.FogStart = float.Parse(dp[1]); Dark.FogEnd = float.Parse(dp[2]); }
+		if (Environment.GetEnvironmentVariable("INTRUDE") != null) Intrude.Run(b, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0])), "intrude.json"));
 		var g0 = DateTime.Now;
 		int painted = Glow.Build(b);
 		Console.WriteLine("lamp light painted on " + painted + " triangles in " + (DateTime.Now - g0).TotalMilliseconds.ToString("0") + " ms");

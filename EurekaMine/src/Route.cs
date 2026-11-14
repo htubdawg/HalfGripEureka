@@ -198,6 +198,52 @@ namespace EurekaMine
 		}
 
 		/// <summary>
+		/// Is p inside some other road's drivable space: within its half width less the margin, over its floor, and under its smooth
+		/// bore's arch (ribs to <see cref="Mine.WallTop"/>, an ellipse to the roof) less the margin? At forks and joins each road's rough
+		/// rock, its roof above all, carried on across the other road's space, hanging below that road's roof: a sheet of rock across the
+		/// road seen from one way and culled (see-through) from the other (owner, 0.4.7).
+		/// </summary>
+		internal static bool InDrive(Road self, Vector3 p, float margin)
+		{
+			foreach (Road r in All)
+			{
+				if (r == self)
+				{
+					continue;
+				}
+				int n = r.Count, last = r.Closed ? n : n - 1;
+				for (int i = 0; i < last; i++)
+				{
+					Vector3 a = r.P[i], c = r.P[(i + 1) % n];
+					if ((a - p).sqrMagnitude > 3600f)
+					{
+						continue;
+					}
+					Vector3 ab = c - a, ap = p - a;
+					ab.y = 0f;
+					ap.y = 0f;
+					float len2 = ab.sqrMagnitude;
+					float f = len2 > 1e-6f ? Mathf.Clamp01(Vector3.Dot(ap, ab) / len2) : 0f;
+					Vector3 q = Vector3.Lerp(a, c, f);
+					float dx = p.x - q.x, dz = p.z - q.z, dy = p.y - q.y;
+					float h = Mathf.Lerp(r.HalfAt(i), r.HalfAt(i + 1), f), ceil = Mathf.Lerp(r.CeilAt(i), r.CeilAt(i + 1), f);
+					float lat = Mathf.Sqrt(dx * dx + dz * dz);
+					if (dy < -1f || lat > h - margin)
+					{
+						continue;
+					}
+					float s = lat / h;
+					float roof = Mine.WallTop + (ceil - Mine.WallTop) * Mathf.Sqrt(Mathf.Max(0f, 1f - s * s));
+					if (dy < roof - margin)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		/// <summary>
 		/// Is p inside some other road's corridor (within its half width, less a margin, and near its floor height)? Walls, sets and lamps
 		/// are left out there: where two roads share a floor (at a fork or a join) there must be no wall across either.
 		/// </summary>
