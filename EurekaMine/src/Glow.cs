@@ -10,14 +10,35 @@ namespace EurekaMine
 	/// switches on or off as the camera moves, and it costs no real lights (0.4.1 moved 8 real lights to the nearest bulbs: everything
 	/// past them was black). The cars' headlights stay real.
 	/// </summary>
+	/// <summary>
+	/// The light underground that comes from no bulb: the fixed ambient and the haze <see cref="Underground"/> sets once the camera is in
+	/// the mine. Kept here, outside the MonoBehaviour, so the preview draws with the same values. Screen (gamma) colours, as RenderSettings
+	/// takes them. 0.4.6's ambient (sky 0.30) lit every metre of rock evenly, so the bulbs' pools barely stood out ("too well lit"):
+	/// now the ambient is a faint fill, the pools and the headlights do the lighting, and the stretches between bulbs are dark but not black.
+	/// </summary>
+	internal static class Dark
+	{
+		internal static Color Sky = new Color(0.115f, 0.105f, 0.095f);
+		internal static Color Equator = new Color(0.085f, 0.078f, 0.068f);
+		internal static Color Ground = new Color(0.045f, 0.041f, 0.037f);
+		internal static Color Fog = new Color(0.025f, 0.021f, 0.017f);
+		internal static float FogStart = 40f;
+		internal static float FogEnd = 700f;
+	}
+
 	internal static class Glow
 	{
 		/// <summary>How far a bulb's light reaches.</summary>
 		internal const float Range = 46f;
 
-		/// <summary>Brightness at the bulb, and the distance at which it has fallen to half.</summary>
-		internal static float Strength = 7.5f;
-		internal static float Near = 8f;
+		/// <summary>
+		/// Brightness at the bulb, and the distance at which it has fallen to half. 0.4.6's 7.5 and 8 lit the whole bore between bulbs
+		/// ("too well lit"): now each bulb lights a pool and the rock between pools falls dark, though never black (the owner's 0.4.1
+		/// note: not pitch black in the distance). Strength is BaseStrength times the LampBrightness setting.
+		/// </summary>
+		internal const float BaseStrength = 4f;
+		internal static float Strength = BaseStrength;
+		internal static float Near = 6f;
 
 		/// <summary>A little light on faces turned away from the bulb too (light bouncing off wet rock), so the rough faces don't go stark.</summary>
 		private const float Wrap = 0.2f;

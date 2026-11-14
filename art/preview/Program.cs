@@ -23,6 +23,9 @@ internal static class Program
 		// GLOW="strength,near" tries other values of the painted light without editing Glow.cs
 		string tune = Environment.GetEnvironmentVariable("GLOW");
 		if (tune != null) { var parts = tune.Split(','); Glow.Strength = float.Parse(parts[0]); Glow.Near = float.Parse(parts[1]); }
+		// DARK="ambient scale,fog start,fog end" tries other underground ambient and haze without editing Glow.cs
+		string dk = Environment.GetEnvironmentVariable("DARK");
+		if (dk != null) { var dp = dk.Split(','); float k = float.Parse(dp[0]); Dark.Sky *= k; Dark.Equator *= k; Dark.Ground *= k; Dark.FogStart = float.Parse(dp[1]); Dark.FogEnd = float.Parse(dp[2]); }
 		var g0 = DateTime.Now;
 		int painted = Glow.Build(b);
 		Console.WriteLine("lamp light painted on " + painted + " triangles in " + (DateTime.Now - g0).TotalMilliseconds.ToString("0") + " ms");
@@ -58,7 +61,10 @@ internal static class Program
 			for (int i = 0; i < m.V.Count; i++) { if (i > 0) sb.Append(','); sb.Append(m.V[i].x.ToString("0.##")).Append(',').Append(m.V[i].y.ToString("0.##")).Append(',').Append(m.V[i].z.ToString("0.##")); }
 			sb.Append("],\"t\":[").Append(string.Join(",", m.T)).Append("]}");
 		}
-		sb.Append("],\"lamps\":[");
+		string C(Color c) => "[" + c.r.ToString("0.####") + "," + c.g.ToString("0.####") + "," + c.b.ToString("0.####") + "]";
+		sb.Append("],\"dark\":{\"sky\":").Append(C(Dark.Sky)).Append(",\"equator\":").Append(C(Dark.Equator)).Append(",\"ground\":").Append(C(Dark.Ground))
+			.Append(",\"fog\":").Append(C(Dark.Fog)).Append(",\"fogStart\":").Append(Dark.FogStart).Append(",\"fogEnd\":").Append(Dark.FogEnd).Append('}');
+		sb.Append(",\"lamps\":[");
 		for (int i = 0; i < Mine.Lamps.Count; i++) { if (i > 0) sb.Append(','); var p = Mine.Lamps[i]; sb.Append(p.x.ToString("0.#")).Append(',').Append(p.y.ToString("0.#")).Append(',').Append(p.z.ToString("0.#")); }
 		sb.Append("],\"niches\":[");
 		for (int i = 0; i < Mine.Niches.Count; i++)

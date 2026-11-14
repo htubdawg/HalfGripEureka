@@ -8,6 +8,8 @@ namespace EurekaMine
 	internal enum Surface
 	{
 		None,
+		/// <summary>The haulage and the slope: the mine's road, the grip the others are measured against.</summary>
+		Haulage,
 		Rough,
 		Coal,
 		Yard

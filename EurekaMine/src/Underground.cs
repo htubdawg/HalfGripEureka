@@ -151,17 +151,16 @@ namespace EurekaMine
 				{
 					sun.intensity = sunIntensity * Mathf.Lerp(1f, 0.0f, dark);
 				}
-				// a fixed warm dusk underground, not a share of the sky's light (the ash day's sky is already dim): dark enough that the
-				// lamps and headlights matter, light enough that the rock-dusted walls always read
-				RenderSettings.ambientSkyColor = Color.Lerp(skyColor, new Color(0.30f, 0.28f, 0.25f), dark);
-				RenderSettings.ambientEquatorColor = Color.Lerp(equatorColor, new Color(0.24f, 0.22f, 0.19f), dark);
-				RenderSettings.ambientGroundColor = Color.Lerp(groundColor, new Color(0.13f, 0.12f, 0.11f), dark);
+				// a faint fixed fill underground, not a share of the sky's light (Dark): the bulbs' pools and the headlights do the lighting
+				RenderSettings.ambientSkyColor = Color.Lerp(skyColor, Dark.Sky, dark);
+				RenderSettings.ambientEquatorColor = Color.Lerp(equatorColor, Dark.Equator, dark);
+				RenderSettings.ambientGroundColor = Color.Lerp(groundColor, Dark.Ground, dark);
 				RenderSettings.ambientIntensity = Mathf.Lerp(ambientIntensity, 1f, dark);
 				RenderSettings.fog = true;
-				RenderSettings.fogColor = Color.Lerp(fogColor, new Color(0.07f, 0.06f, 0.05f), dark);
+				RenderSettings.fogColor = Color.Lerp(fogColor, Dark.Fog, dark);
 				float haze = dark * dark;
-				RenderSettings.fogStartDistance = Mathf.Lerp(fogStart, 60f, haze);
-				RenderSettings.fogEndDistance = Mathf.Lerp(fogEnd, 900f, haze);
+				RenderSettings.fogStartDistance = Mathf.Lerp(fogStart, Dark.FogStart, haze);
+				RenderSettings.fogEndDistance = Mathf.Lerp(fogEnd, Dark.FogEnd, haze);
 			}
 			else if (captured)
 			{

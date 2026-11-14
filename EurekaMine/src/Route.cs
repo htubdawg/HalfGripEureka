@@ -157,10 +157,10 @@ namespace EurekaMine
 			{
 				return;
 			}
-			Main = new Road("haulage", RouteData.MainX, RouteData.MainY, RouteData.MainZ, RouteData.MainWidth, true, Surface.None, -1, -1);
+			Main = new Road("haulage", RouteData.MainX, RouteData.MainY, RouteData.MainZ, RouteData.MainWidth, true, Surface.Haulage, -1, -1);
 			Seam = new Road("upper seam", RouteData.SeamX, RouteData.SeamY, RouteData.SeamZ, RouteData.SeamWidth, false, Surface.Rough, RouteData.SeamFork, RouteData.SeamJoin);
 			Chute = new Road("coal chute", RouteData.ChuteX, RouteData.ChuteY, RouteData.ChuteZ, RouteData.ChuteWidth, false, Surface.Coal, RouteData.ChuteFork, RouteData.ChuteJoin);
-			Runin = new Road("slope", RouteData.RuninX, RouteData.RuninY, RouteData.RuninZ, RouteData.RuninWidth, false, Surface.None, -1, RouteData.RuninJoin);
+			Runin = new Road("slope", RouteData.RuninX, RouteData.RuninY, RouteData.RuninZ, RouteData.RuninWidth, false, Surface.Haulage, -1, RouteData.RuninJoin);
 			All.Clear();
 			All.Add(Main);
 			All.Add(Seam);
@@ -173,6 +173,23 @@ namespace EurekaMine
 			}
 			// the pit bottom: a high wide chamber round the start line, where the slope comes in (nothing passes over it)
 			Main.Widen(-12, 18, 36f, 36f, 6);
+		}
+
+		/// <summary>
+		/// Which ground a point on the roads stands on: the haulage's wherever its floor is (a branch still on the lap's floor drives like
+		/// the lap), else the branch's, else the slope's. The bots' waypoints carry it as their grip, so they plan their speed for it.
+		/// </summary>
+		internal static Surface GroundAt(Vector3 p)
+		{
+			foreach (Road r in new[] { Main, Seam, Chute, Runin })
+			{
+				int i = r.NearestFlat(p, out float dist);
+				if (dist < r.HalfW[i] && Mathf.Abs(p.y - r.P[i].y) < 4f)
+				{
+					return r.Ground;
+				}
+			}
+			return Surface.Haulage;
 		}
 
 		internal static int Mark(string name)

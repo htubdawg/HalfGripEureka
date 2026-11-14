@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.6 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.7 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -122,6 +122,19 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.7** (owner, in game: "still feels too well lit and the track surface seems too slippy"). Light: the bulbs' paint was
+  strength 7.5, half distance 8, which lit the whole bore between bulbs; now 4 and 6 (`Glow.BaseStrength`, `Near`), so each bulb
+  lights a pool and the rock between falls dark but not black; the underground ambient from sky 0.30 to 0.115 (in linear terms it
+  was only ~7%, the paint was the main light) and the haze darker and nearer (`Dark` in `Glow.cs`, shared with the preview, which
+  now reads it from scene.json; `DARK="ambient scale,fog start,fog end"`). `Mine.LampBrightness` scales the paint in game. Painted
+  triangles 260k (360k). Grip: the haulage and slope floors had no HandlingModifier, so the game's default grip 1 (the Stadium's
+  tarmac) on flat, unbanked floors; now `Surface.Haulage` with `Surfaces.HaulageGrip` 1.3 (ride height left as bare ground:
+  `suspensionOffset` 0), and the old workings' and chute's grip are shares of it (so they keep their cost). The bots' waypoints carry
+  the ground's grip (`Route.GroundAt`) as `localScale.y`, which `PathManager` plans their speed with (it was 1 everywhere, even on
+  the chute). Preview: `opts.spot` draws a headlight cone instead of the light at the camera. Checked: compiles with no warnings;
+  preview sheet old against new. Not checked: in game (how dark it reads with the game's own exposure and the real headlights, the
+  feel of 1.3).
 
 - **0.4.6**: the hole scan at every 2nd point found one more kind: a passage on a grade was built level from its opening's lower
   corner, so its mouth fell short of the rib's opening at the higher corner (a gap at the top corner, on the slope). The whole passage

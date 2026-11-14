@@ -37,6 +37,8 @@ for (const b of scene.batches) {
 world.add(new THREE.HemisphereLight(0xcfd6dc, 0x40382f, 1.1));
 const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-0.4, 1, 0.3); world.add(sun);
 const head = new THREE.PointLight(0xfff0d0, 3, 500, 0.6); world.add(head);
+// opts.spot: a stand-in for a car's headlights instead of the light at the camera: a cone from just under the eye towards where it looks
+const spot = new THREE.SpotLight(0xfff0d8, 0, 160, 0.5, 0.5, 1.2); world.add(spot); world.add(spot.target);
 const cam = new THREE.PerspectiveCamera(70, 1280/720, 0.5, 9000);
 // the bulbs' light is painted (the glow batches); opts.pool draws 0.4.1's pool of real lights instead: the 8 bulbs nearest the camera
 // (height counting three times over), each fading to nothing at the distance of the nearest bulb left out
@@ -50,10 +52,14 @@ window.shot = (eye, at, opts={}) => {
   for (const [n, m] of Object.entries(groups)) m.visible = !(opts.hide||[]).some(h => n.includes(h)) && !(opts.pool && n.startsWith('glow'));
   world.background = new THREE.Color(opts.bg || 0x7a7c80);
   world.fog = opts.fog ? new THREE.Fog(opts.bg || 0x7a7c80, 10, opts.fog) : null;
+  // underground, the game's haze (Glow.cs: Dark), drawn over a background of the fog's colour
+  const D = scene.dark;
+  if (opts.dark && D && opts.fog) { const fc = new THREE.Color().setRGB(...D.fog, THREE.SRGBColorSpace); world.background = fc; world.fog = new THREE.Fog(fc, D.fogStart, D.fogEnd); }
   sun.intensity = opts.dark ? 0.0 : 1.4; head.intensity = opts.dark ? (opts.head ?? 160) : 0; head.distance = 150; head.decay = 1.2;
   cam.fov = opts.fov || 70; cam.updateProjectionMatrix();
   cam.position.set(eye[0], eye[1], -eye[2]); head.position.copy(cam.position);
   cam.lookAt(at[0], at[1], -at[2]);
+  spot.intensity = opts.dark && opts.spot ? opts.spot : 0; if (opts.spot) { head.intensity = 0; spot.position.set(eye[0], eye[1] - 5, -eye[2]); spot.target.position.set(at[0], at[1] - 7, -at[2]); }
   const dist = (p, e) => Math.hypot(p.x - e.x, (p.y - e.y) * 3, p.z - e.z);
   const from = cam.position;
   const near = lamps.slice().sort((p, q) => dist(p, from) - dist(q, from));
@@ -63,9 +69,9 @@ window.shot = (eye, at, opts={}) => {
     const fade = 1 - x * x * (3 - 2 * x);
     l.position.copy(near[k]); l.intensity = opts.dark && opts.pool ? 260 * fade : 0;
   });
-  // underground, the game's own fixed ambient (Underground.cs: sky 0.30, 0.28, 0.25, ground 0.13, 0.12, 0.11, intensity 1)
+  // underground, the game's own fixed ambient (Glow.cs: Dark; the equator colour has no counterpart in a hemisphere light)
   for (const h of world.children.filter(o => o.isHemisphereLight)) {
-    if (opts.dark) { h.color.setRGB(0.30, 0.28, 0.25, THREE.SRGBColorSpace); h.groundColor.setRGB(0.13, 0.12, 0.11, THREE.SRGBColorSpace); h.intensity = opts.amb ?? 1; }
+    if (opts.dark) { h.color.setRGB(...D.sky, THREE.SRGBColorSpace); h.groundColor.setRGB(...D.ground, THREE.SRGBColorSpace); h.intensity = opts.amb ?? 1; }
     else { h.color.set(0xcfd6dc); h.groundColor.set(0x40382f); h.intensity = 1.1; }
   }
   renderer.render(world, cam);
