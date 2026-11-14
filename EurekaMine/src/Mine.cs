@@ -767,6 +767,12 @@ namespace EurekaMine
 			nc.Along = (pc - pa).normalized;
 			nc.Width = Vector3.Distance(pa, pc);
 			nc.Mouth.y = Mathf.Min(pa.y, pc.y);
+			// how far the road's floor along the opening stands over the mouth's lowest corner, at a point's place along the opening
+			float Rise(Vector3 q)
+			{
+				float t = Mathf.Clamp01(Vector3.Dot(q - pa, nc.Along) / Mathf.Max(nc.Width, 0.1f));
+				return Mathf.Lerp(pa.y, pc.y, t) - nc.Mouth.y;
+			}
 			Batch rock = Get(b, old ? "seam rock" : "passage rock", old ? Tex.OldRib : Tex.RibWall, Color.white);
 			rock.Shadows = false;
 			rock.Smooth = 0.35f;
@@ -817,6 +823,9 @@ namespace EurekaMine
 						height = -Sink;   // the ribs' feet stand in the floor, not on it, so no sliver opens under them where the floor slopes
 					}
 					Vector3 at = centre + side * lateral + Vector3.up * height;
+					// the whole passage slopes along its opening with the road, as its floor does: built level from the lower corner, its mouth
+					// fell short of the rib's opening at the higher corner on a grade and left a gap there (the preview's hole scan, 0.4.5)
+					at.y += Rise(at);
 					// at the mouth the passage meets the rib's opening exactly; deeper in it is as rough as the bore
 					float back = s == 0 ? 0f : Back(at, old ? 1.35f : 1f) * (s == 1 ? 0.6f : 1f);
 					ids[s][k] = rock.Vertex(at + (side * normal.x + Vector3.up * normal.y) * back, new Vector2(k / 6f, d / 24f));
@@ -832,6 +841,7 @@ namespace EurekaMine
 			}
 			// the face at the end: a fan to a point pushed back into the rock
 			Vector3 end = centres[steps] + Vector3.up * (high * 0.5f);
+			end.y += Rise(end);
 			int tip = rock.Vertex(end + o * (2f + 3f * Noise(end, 5f, 7)), new Vector2(1f, nc.Depth / 24f + 0.2f));
 			for (int k = 0; k < across - 1; k++)
 			{

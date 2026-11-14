@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.5 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.6 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -122,6 +122,11 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.6**: the hole scan at every 2nd point found one more kind: a passage on a grade was built level from its opening's lower
+  corner, so its mouth fell short of the rib's opening at the higher corner (a gap at the top corner, on the slope). The whole passage
+  (rock and face) now slopes along its opening with the road, as its floor does (`Rise` in `BuildNiche`). Left after it: hairlines of
+  2 to 4 pixels at haulage 199 and 261 (by the seam's fork and join).
 
 - **0.4.5** (owner, in game on 0.4.4: "still have giant gaps in the wall dude"): a hole scan in the preview (`holes.js`, see Checking
   changes) found 75 views underground with holes at every 6th point. Causes: (1) every side passage's end face, a fan from its rim
