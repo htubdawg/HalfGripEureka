@@ -1,0 +1,305 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace EurekaMine
+{
+	/// <summary>
+	/// The dark: once the camera is inside the drift the sun and the sky's light fade almost out and a brown haze of coal dust closes in,
+	/// and every car's headlights come on while it is underground. Coming out (a replay, the wreck camera) puts the weather back exactly
+	/// as it was. The method is Temple of Drift's cave atmosphere (4l3x4nd3r, MIT).
+	/// </summary>
+	internal sealed class Underground : MonoBehaviour
+	{
+		private TrackManager track;
+		private Light sun;
+		private HeadLightsController[] heads = new HeadLightsController[0];
+		private float headsAt = -1f;
+		private float amount;
+		private bool captured;
+
+		private float sunIntensity;
+		private Color skyColor, equatorColor, groundColor, fogColor;
+		private float ambientIntensity, fogStart, fogEnd;
+		private bool fogOn;
+
+		private ParticleSystem dust;
+
+		/// <summary>
+		/// Coal dust hanging in the air round the camera underground: faint specks drifting slowly, made with the material of one of the
+		/// scene's own particle systems (the Stadium's ash), so it renders the way the game's particles do.
+		/// </summary>
+		private void MakeDust()
+		{
+			Material source = null;
+			foreach (ParticleSystemRenderer pr in Resources.FindObjectsOfTypeAll<ParticleSystemRenderer>())
+			{
+				if (pr != null && pr.sharedMaterial != null && pr.sharedMaterial.shader != null && pr.sharedMaterial.shader.name.Contains("Particles"))
+				{
+					source = pr.sharedMaterial;
+					break;
+				}
+			}
+			if (source == null)
+			{
+				Mod.Info("No particle material in the scene: no dust in the air");
+				return;
+			}
+			GameObject go = new GameObject("coal dust");
+			go.transform.SetParent(transform, false);
+			dust = go.AddComponent<ParticleSystem>();
+			dust.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+			ParticleSystem.MainModule main = dust.main;
+			main.loop = true;
+			main.startLifetime = new ParticleSystem.MinMaxCurve(5f, 9f);
+			main.startSpeed = new ParticleSystem.MinMaxCurve(0.1f, 0.5f);
+			main.startSize = new ParticleSystem.MinMaxCurve(0.07f, 0.2f);
+			main.startColor = new Color(0.75f, 0.7f, 0.62f, 0.55f);
+			main.maxParticles = 600;
+			main.simulationSpace = ParticleSystemSimulationSpace.World;
+			main.gravityModifier = 0.002f;
+			ParticleSystem.EmissionModule emission = dust.emission;
+			emission.rateOverTime = 90f;
+			ParticleSystem.ShapeModule shape = dust.shape;
+			shape.enabled = true;
+			shape.shapeType = ParticleSystemShapeType.Box;
+			shape.scale = new Vector3(70f, 16f, 70f);
+			ParticleSystem.NoiseModule noise = dust.noise;
+			noise.enabled = true;
+			noise.strength = 0.25f;
+			noise.frequency = 0.15f;
+			ParticleSystemRenderer renderer = go.GetComponent<ParticleSystemRenderer>();
+			renderer.sharedMaterial = new Material(source);
+			renderer.renderMode = ParticleSystemRenderMode.Billboard;
+		}
+
+		internal void Setup(TrackManager tm)
+		{
+			track = tm;
+			try
+			{
+				MakeDust();
+			}
+			catch (System.Exception e)
+			{
+				Mod.Log.LogWarning("Could not make the dust in the air: " + e.Message);
+				dust = null;
+			}
+			WeatherController weather = FindFirstObjectByType<WeatherController>();
+			sun = weather != null ? weather.directionalLight : null;
+			if (sun == null)
+			{
+				foreach (Light l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+				{
+					if (l.type == LightType.Directional && (sun == null || l.intensity > sun.intensity))
+					{
+						sun = l;
+					}
+				}
+			}
+		}
+
+		/// <summary>How far underground a point is: 0 in the open, 1 forty units inside the drift mouth or anywhere below the yard.</summary>
+		internal static float Depth(Vector3 p)
+		{
+			if (p.y < -14f)
+			{
+				return 1f;
+			}
+			// in the hill: past the face of the drift and inside the slope's tunnel
+			if (p.x > Pithead.HillX0 - 2f && p.x < Pithead.HillBackFoot && p.y < Pithead.HillTop - 2f && p.z > Pithead.HillZ0 && p.z < Pithead.HillZ1)
+			{
+				return Mathf.Clamp01((p.x - Pithead.HillX0) / 40f);
+			}
+			return Mathf.Clamp01(-p.y / 14f) * (p.x > Pithead.HillX0 ? 1f : 0f);
+		}
+
+		private static bool Observer(TrackManager tm, out Vector3 pos)
+		{
+			Camera c = Camera.main;
+			if (c != null && c.isActiveAndEnabled)
+			{
+				pos = c.transform.position;
+				return true;
+			}
+			if (tm != null && tm.playerCarController != null)
+			{
+				pos = tm.playerCarController.transform.position;
+				return true;
+			}
+			pos = Vector3.zero;
+			return false;
+		}
+
+		private void LateUpdate()
+		{
+			if (track == null)
+			{
+				return;
+			}
+			float target = Observer(track, out Vector3 observer) ? Depth(observer) : 0f;
+			amount = Mathf.MoveTowards(amount, target, Time.deltaTime * 1.5f);
+			if (amount > 0.002f)
+			{
+				if (!captured)
+				{
+					Capture();
+				}
+				float dark = Mathf.SmoothStep(0f, 1f, amount);
+				if (sun != null)
+				{
+					sun.intensity = sunIntensity * Mathf.Lerp(1f, 0.0f, dark);
+				}
+				// a fixed warm dusk underground, not a share of the sky's light (the ash day's sky is already dim): dark enough that the
+				// lamps and headlights matter, light enough that the rock-dusted walls always read
+				RenderSettings.ambientSkyColor = Color.Lerp(skyColor, new Color(0.30f, 0.28f, 0.25f), dark);
+				RenderSettings.ambientEquatorColor = Color.Lerp(equatorColor, new Color(0.24f, 0.22f, 0.19f), dark);
+				RenderSettings.ambientGroundColor = Color.Lerp(groundColor, new Color(0.13f, 0.12f, 0.11f), dark);
+				RenderSettings.ambientIntensity = Mathf.Lerp(ambientIntensity, 1f, dark);
+				RenderSettings.fog = true;
+				RenderSettings.fogColor = Color.Lerp(fogColor, new Color(0.07f, 0.06f, 0.05f), dark);
+				float haze = dark * dark;
+				RenderSettings.fogStartDistance = Mathf.Lerp(fogStart, 60f, haze);
+				RenderSettings.fogEndDistance = Mathf.Lerp(fogEnd, 900f, haze);
+			}
+			else if (captured)
+			{
+				Restore();
+			}
+
+			// the dust follows the camera, and only underground
+			if (dust != null)
+			{
+				bool on = amount > 0.5f;
+				if (on)
+				{
+					dust.transform.position = observer;
+					if (!dust.isPlaying)
+					{
+						dust.Play();
+					}
+				}
+				else if (dust.isPlaying)
+				{
+					dust.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+				}
+			}
+
+			// cars come and go (a late rival): look the headlights up now and then
+			if (Time.time - headsAt > 2f)
+			{
+				headsAt = Time.time;
+				heads = FindObjectsByType<HeadLightsController>(FindObjectsSortMode.None);
+			}
+			foreach (HeadLightsController h in heads)
+			{
+				if (h != null && h.spotlight != null)
+				{
+					h.spotlight.SetActive(Depth(h.transform.position) > 0.2f);
+				}
+			}
+		}
+
+		private void Capture()
+		{
+			captured = true;
+			sunIntensity = sun != null ? sun.intensity : 1f;
+			skyColor = RenderSettings.ambientSkyColor;
+			equatorColor = RenderSettings.ambientEquatorColor;
+			groundColor = RenderSettings.ambientGroundColor;
+			ambientIntensity = RenderSettings.ambientIntensity;
+			fogOn = RenderSettings.fog;
+			fogColor = RenderSettings.fogColor;
+			fogStart = RenderSettings.fogStartDistance;
+			fogEnd = RenderSettings.fogEndDistance;
+		}
+
+		private void Restore()
+		{
+			captured = false;
+			if (sun != null)
+			{
+				sun.intensity = sunIntensity;
+			}
+			RenderSettings.ambientSkyColor = skyColor;
+			RenderSettings.ambientEquatorColor = equatorColor;
+			RenderSettings.ambientGroundColor = groundColor;
+			RenderSettings.ambientIntensity = ambientIntensity;
+			RenderSettings.fog = fogOn;
+			RenderSettings.fogColor = fogColor;
+			RenderSettings.fogStartDistance = fogStart;
+			RenderSettings.fogEndDistance = fogEnd;
+		}
+
+		private void OnDestroy()
+		{
+			if (captured)
+			{
+				Restore();
+			}
+		}
+	}
+
+	/// <summary>
+	/// The mine's lamps glow on their own; a handful of real point lights are moved to the lamps nearest the camera a few times a second,
+	/// so the haulage is lit in pools round the player without paying for hundreds of lights.
+	/// </summary>
+	internal sealed class LampLights : MonoBehaviour
+	{
+		private readonly List<Light> pool = new List<Light>();
+		private float next;
+		private readonly List<int> order = new List<int>();
+
+		internal void Setup(int count)
+		{
+			for (int i = 0; i < Mathf.Clamp(count, 0, 32); i++)
+			{
+				GameObject go = new GameObject("lamp light");
+				go.transform.SetParent(transform, false);
+				Light l = go.AddComponent<Light>();
+				l.type = LightType.Point;
+				// not Important: the renderer gives each object only a few lights, and the cars' headlights must win them
+				l.range = 48f;
+				l.intensity = 70f;
+				l.color = new Color(1f, 0.8f, 0.55f);
+				l.shadows = LightShadows.None;
+				l.renderMode = LightRenderMode.Auto;
+				go.SetActive(false);
+				pool.Add(l);
+			}
+		}
+
+		private void LateUpdate()
+		{
+			if (pool.Count == 0 || Time.time < next)
+			{
+				return;
+			}
+			next = Time.time + 0.25f;
+			Camera c = Camera.main;
+			if (c == null)
+			{
+				return;
+			}
+			Vector3 eye = c.transform.position;
+			List<Vector3> lamps = Mine.Lamps;
+			order.Clear();
+			for (int i = 0; i < lamps.Count; i++)
+			{
+				if ((lamps[i] - eye).sqrMagnitude < 400f * 400f)
+				{
+					order.Add(i);
+				}
+			}
+			order.Sort((a, b) => (lamps[a] - eye).sqrMagnitude.CompareTo((lamps[b] - eye).sqrMagnitude));
+			for (int k = 0; k < pool.Count; k++)
+			{
+				bool use = k < order.Count;
+				pool[k].gameObject.SetActive(use);
+				if (use)
+				{
+					pool[k].transform.position = lamps[order[k]] + Vector3.down * 1.5f;
+				}
+			}
+		}
+	}
+}
