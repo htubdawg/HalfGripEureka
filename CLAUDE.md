@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.3 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.4 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -38,7 +38,7 @@ The race starts in the pithead yard, runs down a slope into the mine, and every 
 | `Route.cs` | The roads (`Road`): points, widths, forks and joins; `InsideOther` (is a point inside another road's corridor) |
 | `MeshKit.cs`, `Textures.cs` | `Batch` (one mesh per texture/tint/behaviour), `Mats` (materials from the scene's ground shader), textures painted in code |
 | `Mine.cs` | Each road as one rough rock bore (`Shape`: straight ribs and an elliptical arch; `Rock`: that shape pushed back by ridged noise, `Sub` columns per 8-unit step, flat-shaded) round an invisible smooth guard of the same shape; side passages as short rough bores (`Niche`, `BuildNiche`); occasional posts; bulbs on the crown wire; puddles; rails; rubble heaps; the drift portal; the start line |
-| `Props.cs` | What fills the niches (machinery, curtains, stoppings, supplies...), utilities on the walls, chevrons on the bends, the signs, the pit bottom's shaft station and loading tracks |
+| `Props.cs` | What fills the niches (brattice, stopping, mine car, supplies, barricade, pump; locomotive and car, man trip), utilities on the walls, chevrons on the bends, the few signs, the pit bottom's shaft station and loading tracks |
 | `Pithead.cs` | The surface: ground, hill with highwalls, breaker, culm banks, siding, houses, church, headframe, boiler house |
 | `SceneBuilder.cs` | Orchestrates the build; the lap line and the four bot paths; the grid; labels |
 | `RunIn.cs` | Lap 1's run in: the lap-counter prefix, the player reset on the slope, the bots' slope path and handover, the gate |
@@ -83,6 +83,11 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
 - **Nothing visible stands in the road unless it is solid and meant to be:** the cars touch invisible smooth guard walls and roof at
   the road's edge (straight across every side passage, so nothing snags, bots included); the rock, posts, pipes, cables and rubble
   are drawn just behind that line. Hazard doors are never solid (owner's call after 0.2.0).
+- **Show, don't tell** (the owner, after the first look in game): text only where a real mine has it and at a believable size (signs
+  about 6 to 12 wide, 2 to 4 high), never boards naming every stretch, arrows or repeated safety notes. Things say what they are by
+  their shape.
+- **Scale:** the car is 14.2 x 7.3 (its collider), so about 3 units to the metre; the track gauge (6.4) and the rolling stock sized
+  to it are a deliberate 1.8 times real size. Keep new pieces consistent with those.
 - Don't invent an `ObjectiveKind`. Never change `MapEntry.MapName` (saves find the map by it).
 
 ## Checking changes
@@ -113,6 +118,21 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.4** (owner's first look in game at the painted light: "Lights look good but there's way too many of them"; the niche
+  dressing "looks pretty bad but I like the idea": back walls not meeting the floor, so you can see through the map, improper scale,
+  overly labeled; "do not remove ALL text, just keep it realistic and good looking"): bulbs every 9 to 12 points (option C of three:
+  102 bulbs, ~84 units apart; `Mine.BulbGap`/`BulbSpread`; the preview's `BULBS="gap,spread"`). Passage floors run 7 past the
+  opening's sides, 8 past its face and 1.5 into the road, sloped with the road along the opening, 0.12 under the road's floor.
+  Passages every 14 points (7 before), 8 in the old workings (5): 48 in all (92). Kinds: brattice, stopping, mine car, supplies,
+  barricade, pump (their own counter: counted with the big ones, two kinds never came up); big: locomotive and car, man trip. Gone:
+  first aid, power centre, shuttle car and bolter, continuous miner, the shanty (its flat glowing window looked bad in game).
+  Text: kept the plane's warning, "1 SOUTH", the old workings' danger board, "KEEP DOORS SHUT" on the chute, "NO SMOKING" on the
+  slope, the shaft's name and the safety board, all shrunk; the barricades' small "DANGER". Gone: the road-wide name boards, the
+  arrow signs, the safety notes every 23 points, the niche placards. Painted triangles 350k, 0.9 s in the preview. The machines'
+  scale was left alone (consistent with the 6.4 gauge); the owner did not say which pieces looked off. Checked: compiles with no
+  warnings; preview sheets of the bulb spacings and of every niche kind with a car-sized box. Not checked: in game; the passages'
+  floor corners in the preview's low shots (the camera sat partly in the rock).
 
 - **0.4.3** (owner: "why is the old version so much oranger ... the white lights don't look that good"): the glow's colour is now
   the real lights' colour as URP lights with it, (1, 0.60, 0.26): a `Light.color` is a screen (gamma) colour converted to linear, a

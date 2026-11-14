@@ -113,12 +113,7 @@ namespace EurekaMine
 				case 3: Supplies(f, w); break;
 				case 4: Barricade(f, w, h); break;
 				case 5: Pump(f, w, d); break;
-				case 6: FirstAid(f, w); break;
 				case 100: Locomotive(f.P(-5f, 0f, d * 0.55f), Quaternion.LookRotation(f.X, Vector3.up)); MineCar(f.P(9f, 0f, d * 0.55f), Quaternion.LookRotation(f.X, Vector3.up), true); Rails(f.P(-w * 0.5f, 0.2f, d * 0.55f), f.X, w); break;
-				case 101: ContinuousMiner(f.P(0f, 0f, d * 0.55f), Quaternion.LookRotation(-f.X, Vector3.up)); break;
-				case 102: ShuttleCar(f.P(-4f, 0f, d * 0.5f), Quaternion.LookRotation(f.X, Vector3.up)); RoofBolter(f.P(10f, 0f, d * 0.6f), f.R(90f)); break;
-				case 103: PowerCenter(f, w, d); break;
-				case 104: Shanty(f, w, d); break;
 				case 105: ManTrip(f.P(0f, 0f, d * 0.55f), Quaternion.LookRotation(f.X, Vector3.up)); Rails(f.P(-w * 0.5f, 0.2f, d * 0.55f), f.X, w); break;
 				case 301: Heap(f.P(0f, 0f, d * 0.6f), 9f, 6f, 9); break;
 				case 302: OldCar(f.P(1f, 0f, d * 0.5f), f.R(70f)); break;
@@ -149,7 +144,6 @@ namespace EurekaMine
 			Get("stoppings", Tex.Concrete, Color.white, true).Box(f.P(0f, h * 0.5f, 5f), new Vector3(w, h, 1.6f), f.Q, 6f);
 			DarkSteel.Box(f.P(w * 0.2f, 3.8f, 4.1f), new Vector3(4.2f, 7.4f, 0.3f), f.Q, 3f);
 			Glow(new Color(0.9f, 0.2f, 0.1f)).Box(f.P(w * 0.2f, 8.2f, 4.1f), new Vector3(1f, 0.6f, 0.3f), f.Q, 1f);
-			Placard(f.P(-w * 0.22f, 7f, 4.1f), -f.Z, 7f, 2.2f, "STOPPING", new Color(0.1f, 0.1f, 0.1f), Tex.Enamel, new Color(0.9f, 0.88f, 0.8f));
 		}
 
 		private static void CarInNiche(Frame f, float w)
@@ -171,7 +165,6 @@ namespace EurekaMine
 			{
 				bags.Box(f.P(-w * 0.33f + (k % 2) * 2.6f, 0.65f + (k / 4) * 1.3f, 3f + (k / 2 % 2) * 1.8f), new Vector3(2.4f, 1.2f, 1.6f), f.R((k * 13) % 9 - 4), 2f);
 			}
-			Placard(f.P(-w * 0.3f, 6.5f, 1.2f), -f.Z, 6f, 2f, "ROCK DUST", new Color(0.1f, 0.1f, 0.1f), Tex.Enamel, new Color(0.95f, 0.95f, 0.92f));
 		}
 
 		/// <summary>Boards nailed across a crosscut to bad roof, with the sign.</summary>
@@ -182,7 +175,7 @@ namespace EurekaMine
 			boards.Box(f.P(0f, h * 0.5f, 1f), new Vector3(Mathf.Sqrt(w * w + h * h) - 2f, 1.2f, 0.5f), f.Q * Quaternion.Euler(0f, 0f, a), 3f);
 			boards.Box(f.P(0f, h * 0.5f, 1f), new Vector3(Mathf.Sqrt(w * w + h * h) - 2f, 1.2f, 0.5f), f.Q * Quaternion.Euler(0f, 0f, -a), 3f);
 			boards.Box(f.P(0f, h * 0.35f, 0.7f), new Vector3(w - 0.5f, 1.2f, 0.5f), f.Q, 3f);
-			Placard(f.P(0f, h * 0.62f, 0.3f), -f.Z, 9f, 3f, "DANGER\nKEEP OUT", new Color(0.75f, 0.08f, 0.05f), Tex.Enamel, new Color(0.95f, 0.93f, 0.88f));
+			Placard(f.P(0f, h * 0.62f, 0.3f), -f.Z, 5f, 1.8f, "DANGER", new Color(0.75f, 0.08f, 0.05f), Tex.Enamel, new Color(0.95f, 0.93f, 0.88f));
 		}
 
 		/// <summary>A pump at the sump in the back of the crosscut, its discharge line out along the floor.</summary>
@@ -194,42 +187,6 @@ namespace EurekaMine
 			green.Cylinder(f.P(-3.5f, 1.6f, d - 11f), f.P(-1.8f, 1.6f, d - 11f), 1.3f, 8, 2f, true);
 			Rubber.Cylinder(f.P(0f, 0.5f, d - 12.6f), f.P(0f, 0.5f, 0.5f), 0.4f, 5, 2f, false);
 			Steel.Cylinder(f.P(1.8f, 1.2f, d - 11f), f.P(2.2f, 0.4f, d - 6f), 0.35f, 5, 2f, false);
-		}
-
-		private static void FirstAid(Frame f, float w)
-		{
-			Batch locker = Machine("white", new Color(0.88f, 0.88f, 0.85f));
-			locker.Box(f.P(-w * 0.2f, 3f, 5f), new Vector3(5f, 6f, 2.4f), f.Q, 2f);
-			Glow(new Color(0.85f, 0.1f, 0.08f)).Box(f.P(-w * 0.2f, 3.6f, 3.75f), new Vector3(1.4f, 0.4f, 0.1f), f.Q, 1f);
-			Glow(new Color(0.85f, 0.1f, 0.08f)).Box(f.P(-w * 0.2f, 3.6f, 3.75f), new Vector3(0.4f, 1.4f, 0.1f), f.Q, 1f);
-			// a stretcher against the wall
-			Batch canvas = Get("stretcher", Tex.Brattice, new Color(0.6f, 0.6f, 0.55f));
-			canvas.Box(f.P(w * 0.25f, 2.8f, 6f), new Vector3(2.2f, 5.6f, 0.4f), f.Q * Quaternion.Euler(-12f, 0f, 0f), 2f);
-			Placard(f.P(-w * 0.2f, 7.4f, 3.7f), -f.Z, 6f, 1.8f, "FIRST AID", new Color(0.8f, 0.08f, 0.05f), Tex.Enamel, new Color(0.95f, 0.95f, 0.92f));
-		}
-
-		/// <summary>A power centre: the long grey box that feeds the face machines, its breakers lit, and a cable reel.</summary>
-		private static void PowerCenter(Frame f, float w, float d)
-		{
-			Batch grey = Machine("grey", new Color(0.5f, 0.52f, 0.53f));
-			grey.Box(f.P(0f, 2.8f, d * 0.6f), new Vector3(w * 0.7f, 5.6f, 6f), f.Q, 3f);
-			for (int k = 0; k < 6; k++)
-			{
-				Glow(k % 3 == 0 ? new Color(0.9f, 0.15f, 0.1f) : new Color(0.2f, 0.9f, 0.3f)).Box(f.P(-w * 0.28f + k * 3.2f, 4f, d * 0.6f - 3.05f), new Vector3(0.6f, 0.6f, 0.1f), f.Q, 1f);
-			}
-			Rubber.Cylinder(f.P(w * 0.4f, 3f, d * 0.4f - 1.2f), f.P(w * 0.4f, 3f, d * 0.4f + 1.2f), 2.6f, 10, 2f, true);
-			Placard(f.P(-w * 0.15f, 7.2f, d * 0.6f - 3.1f), -f.Z, 10f, 2.6f, "DANGER\n7200 VOLTS", new Color(0.85f, 0.1f, 0.05f), Tex.Enamel, new Color(0.95f, 0.85f, 0.15f));
-		}
-
-		/// <summary>The dispatcher's shanty: a little timber shed with a lit window, a door and a stovepipe.</summary>
-		private static void Shanty(Frame f, float w, float d)
-		{
-			Batch planks = Get("shanty", Tex.Boards, new Color(0.9f, 0.85f, 0.75f), true);
-			planks.Gable(f.P(0f, 0f, d * 0.55f), w * 0.55f, 10f, 9f, 2.5f, f.Q, 4f, Rust);
-			Glow(new Color(1f, 0.8f, 0.4f)).Box(f.P(-3f, 5f, d * 0.55f - 5.05f), new Vector3(4f, 2.6f, 0.1f), f.Q, 1f);
-			DarkSteel.Box(f.P(4f, 3.5f, d * 0.55f - 5.05f), new Vector3(3f, 7f, 0.1f), f.Q, 2f);
-			DarkSteel.Cylinder(f.P(5f, 9f, d * 0.55f + 2f), f.P(5f, 13.5f, d * 0.55f + 2f), 0.5f, 6, 2f, false);
-			Placard(f.P(0f, 10.8f, d * 0.55f - 5.3f), -f.Z, 9f, 1.8f, "DISPATCHER", new Color(0.95f, 0.85f, 0.55f), Tex.Boards, new Color(0.5f, 0.45f, 0.4f));
 		}
 
 		// ---- machines --------------------------------------------------------------------------------------------------------
@@ -273,54 +230,6 @@ namespace EurekaMine
 			Glow(new Color(1f, 0.9f, 0.6f)).Box(at + rot * new Vector3(2f, 3.4f, 7.55f), new Vector3(1.2f, 1.2f, 0.1f), rot, 1f);
 			Steel.Cylinder(at + rot * new Vector3(0f, 5.5f, -1f), at + rot * new Vector3(0f, 13f, -7f), 0.25f, 5, 2f, false);
 			Glow(new Color(0.9f, 0.2f, 0.1f)).Box(at + rot * new Vector3(0f, 5.8f, -7.6f), new Vector3(1f, 0.8f, 0.1f), rot, 1f);
-		}
-
-		/// <summary>A continuous miner: the red machine with its cutting drum on a boom at the front and a tail conveyor behind.</summary>
-		private static void ContinuousMiner(Vector3 at, Quaternion rot)
-		{
-			Batch red = Machine("miner red", new Color(0.62f, 0.14f, 0.1f));
-			red.Box(at + rot * new Vector3(0f, 2.6f, 0f), new Vector3(9f, 4.2f, 13f), rot, 3f);
-			red.Box(at + rot * new Vector3(0f, 4.6f, 7f), new Vector3(5f, 2.4f, 6f), rot * Quaternion.Euler(12f, 0f, 0f), 3f);
-			Batch drum = Machine("drum", new Color(0.32f, 0.32f, 0.33f));
-			drum.Cylinder(at + rot * new Vector3(-6f, 3.4f, 10.5f), at + rot * new Vector3(6f, 3.4f, 10.5f), 2.6f, 12, 2f, true);
-			for (int k = 0; k < 10; k++)
-			{
-				float x = -5.5f + k * 1.2f, a = k * 0.9f;
-				Steel.Box(at + rot * new Vector3(x, 3.4f + Mathf.Sin(a) * 2.9f, 10.5f + Mathf.Cos(a) * 2.9f), new Vector3(0.4f, 0.9f, 0.4f), rot * Quaternion.Euler(a * Mathf.Rad2Deg, 0f, 0f), 1f);
-			}
-			red.Box(at + rot * new Vector3(0f, 0.9f, 9f), new Vector3(10f, 0.8f, 4f), rot, 3f);
-			DarkSteel.Box(at + rot * new Vector3(0f, 2.4f, -10f), new Vector3(3f, 1.2f, 9f), rot * Quaternion.Euler(-10f, 0f, 0f), 3f);
-			DarkSteel.Box(at + rot * new Vector3(-4.6f, 0.9f, 0f), new Vector3(1.4f, 1.8f, 12f), rot, 2f);
-			DarkSteel.Box(at + rot * new Vector3(4.6f, 0.9f, 0f), new Vector3(1.4f, 1.8f, 12f), rot, 2f);
-			CoalLoad.Heap(at + rot * new Vector3(0f, 0f, 14f), 5f, 2.2f, 9, 2, 0f, null, 2f);
-		}
-
-		/// <summary>A shuttle car: the low, wide, four-wheeled coal hauler with its conveyor bed heaped.</summary>
-		private static void ShuttleCar(Vector3 at, Quaternion rot)
-		{
-			Batch body = Machine("shuttle", new Color(0.7f, 0.58f, 0.16f));
-			body.Box(at + rot * new Vector3(0f, 2.2f, 0f), new Vector3(8.5f, 2.6f, 16f), rot, 3f);
-			Rubber.Box(at + rot * new Vector3(0f, 3.6f, 0f), new Vector3(5f, 0.3f, 15f), rot, 3f);
-			CoalLoad.Heap(at + rot * new Vector3(0f, 3.6f, 1f), 2.8f, 1.3f, 8, 2, 0f, null, 2f);
-			foreach (float x in new[] { -4.4f, 4.4f })
-			{
-				foreach (float z in new[] { -5.5f, 5.5f })
-				{
-					Rubber.Cylinder(at + rot * new Vector3(x - 0.7f, 1.4f, z), at + rot * new Vector3(x + 0.7f, 1.4f, z), 1.4f, 10, 2f, true);
-				}
-			}
-		}
-
-		/// <summary>A roof bolter: a squat machine with two masts to drill the roof and set the bolts.</summary>
-		private static void RoofBolter(Vector3 at, Quaternion rot)
-		{
-			Batch blue = Machine("bolter", new Color(0.16f, 0.26f, 0.5f));
-			blue.Box(at + rot * new Vector3(0f, 1.8f, 0f), new Vector3(7f, 2.6f, 10f), rot, 3f);
-			foreach (float x in new[] { -2.4f, 2.4f })
-			{
-				blue.Box(at + rot * new Vector3(x, 6.5f, 4f), new Vector3(0.9f, 8f, 0.9f), rot, 2f);
-				Steel.Box(at + rot * new Vector3(x, 10.6f, 4f), new Vector3(2.4f, 0.4f, 2.4f), rot, 2f);
-			}
 		}
 
 		/// <summary>A man trip: the low open car with benches that carries the shift in and out.</summary>
@@ -489,39 +398,20 @@ namespace EurekaMine
 			Placard(c, normal, w, h, text, ink, Tex.Enamel, paint);
 		}
 
+		/// <summary>
+		/// Only the signs a real mine has where it would have them, at a believable size (0.4.3 had road-wide boards naming every
+		/// stretch, arrows, and safety notes every 23 points: the owner found it "overly labeled"): the plane's warning, the section
+		/// board at the plane's foot, the danger board at the old workings, the chute's door notice, no smoking on the slope.
+		/// </summary>
 		private static void Signs()
 		{
 			Road m = Route.Main;
 			int plane = Route.Mark("Plane head"), foot = Route.Mark("Plane foot");
-			Hanging(m, 34, 0f, 22f, "MAIN HAULAGE", Ink, Cream);
-			Hanging(m, plane - 6, 0f, 30f, "ENGINE PLANE\nWATCH FOR RUNAWAYS", Red, new Color(0.95f, 0.85f, 0.15f));
-			OnWall(m, plane + 6, 1f, 8f, 9f, 3f, "DANGER", Red, Cream);
-			OnWall(m, foot + 4, -1f, 9f, 14f, 3f, "1 SOUTH GANGWAY", Ink, Cream);
-			int fork = Route.Seam.Fork;
-			Hanging(m, fork - 4, -0.5f, 16f, "OLD WORKS ^\nKEEP OUT", Red, Cream);
-			Hanging(m, fork - 4, 0.5f, 14f, "GANGWAY >", Ink, Cream);
-			Hanging(m, Route.Mark("Spiral foot") - 4, 0f, 20f, "SPIRAL SLOPE", Ink, Cream);
-			Hanging(m, Route.Mark("Spiral head") + 4, 0f, 22f, "UPPER GANGWAY", Ink, Cream);
-			OnWall(m, Route.Mark("Overcast") - 3, 1f, 9f, 18f, 3f, "OVERCAST\nHAULAGE BELOW", Ink, Cream);
-			int chute = Route.Chute.Fork;
-			Hanging(m, chute - 5, -0.5f, 16f, "< SWITCHBACKS", Ink, Cream);
-			Hanging(m, chute - 5, 0.5f, 16f, "COAL CHUTE ^", Red, new Color(0.95f, 0.85f, 0.15f));
-			OnWall(Route.Seam, 3, -1f, 9f, 14f, 3f, "DANGER\nOLD WORKS", Red, Cream);
-			OnWall(Route.Chute, 6, 1f, 9f, 14f, 3f, "KEEP DOORS SHUT", Red, Cream);
-			Road s = Route.Runin;
-			OnWall(s, RouteData.RuninMouth + 6, 1f, 9f, 14f, 3f, "EUREKA SLOPE", Ink, Cream);
-			OnWall(s, RouteData.RuninMouth + 20, -1f, 9f, 16f, 3.6f, "TRIPS ON\nTHE SLOPE", Red, Cream);
-			OnWall(s, RouteData.RuninMouth + 50, 1f, 9f, 12f, 3f, "SAFETY FIRST", Red, Cream);
-			OnWall(s, RouteData.RuninMouth + 80, -1f, 9f, 12f, 3f, "NO SMOKING", Red, Cream);
-			// placards along the lap wherever a wall is free
-			string[] notes = { "SAFETY FIRST", "NO SMOKING", "REPORT ALL\nACCIDENTS", "WATCH FOR\nTRIPS", "DANGER\nHIGH VOLTAGE", "ROCK DUST\nSAVES LIVES", "CHECK YOUR\nLAMP", "KEEP CLEAR\nOF THE WIRE" };
-			int n = 0;
-			for (int i = 40; i < m.Count - 20; i += 23)
-			{
-				float side = n % 2 == 0 ? -1f : 1f;
-				OnWall(m, i, side, 10f, 11f, 3.4f, notes[n % notes.Length], notes[n % notes.Length].Contains("DANGER") || notes[n % notes.Length].Contains("SMOKING") ? Red : Ink, Cream);
-				n++;
-			}
+			Hanging(m, plane - 6, 0f, 12f, "ENGINE PLANE\nWATCH FOR RUNAWAYS", Red, new Color(0.95f, 0.85f, 0.15f));
+			OnWall(m, foot + 4, -1f, 9f, 8f, 1.8f, "1 SOUTH", Ink, Cream);
+			OnWall(Route.Seam, 3, -1f, 8f, 7f, 2.6f, "DANGER\nOLD WORKS", Red, Cream);
+			OnWall(Route.Chute, 6, 1f, 8f, 8f, 1.8f, "KEEP DOORS SHUT", Red, Cream);
+			OnWall(Route.Runin, RouteData.RuninMouth + 80, -1f, 8f, 6f, 1.8f, "NO SMOKING", Red, Cream);
 		}
 
 		// ---- the pit bottom --------------------------------------------------------------------------------------------------
@@ -559,7 +449,7 @@ namespace EurekaMine
 			// the signal bell and its lamp
 			Machine("grey", new Color(0.5f, 0.52f, 0.53f)).Box(wall + right * 1.0f + f * 12f + Vector3.up * 8f, new Vector3(1.6f, 3f, 2f), q, 2f);
 			Glow(new Color(0.2f, 0.9f, 0.3f)).Box(wall + right * 1.85f + f * 12f + Vector3.up * 9f, new Vector3(0.1f, 0.6f, 0.6f), q, 1f);
-			Placard(wall + right * 2.6f + Vector3.up * 30f, right, 22f, 3.4f, "EUREKA No. 9 SHAFT", Ink, Tex.Enamel, Cream);
+			Placard(wall + right * 2.6f + Vector3.up * 28.6f, right, 12f, 2.2f, "EUREKA No. 9 SHAFT", Ink, Tex.Enamel, Cream);
 
 			// the loading tracks along the left wall, with a locomotive and a trip of loaded cars
 			int t0 = 9;
@@ -589,8 +479,8 @@ namespace EurekaMine
 			}
 			int b0 = 2;
 			Vector3 board = m.At(b0) + m.Right(b0) * (m.HalfAt(b0) - 0.3f) + Vector3.up * 14f;
-			Placard(board, -m.Right(b0), 26f, 7f, "EUREKA MINE\nSAFETY FIRST", Red, Tex.Enamel, Cream);
-			Placard(board + Vector3.down * 6f, -m.Right(b0), 26f, 3f, "DAYS WITHOUT A LOST-TIME ACCIDENT: 0", Ink, Tex.Enamel, Cream);
+			Placard(board, -m.Right(b0), 12f, 4f, "EUREKA MINE\nSAFETY FIRST", Red, Tex.Enamel, Cream);
+			Placard(board + Vector3.down * 3.6f, -m.Right(b0), 12f, 2.4f, "DAYS WITHOUT\nAN ACCIDENT  0", Ink, Tex.Enamel, Cream);
 			Vector3 bench = m.At(12) + m.Right(12) * (m.HalfAt(12) - 3f);
 			Quaternion bq = Quaternion.LookRotation(m.Forward(12), Vector3.up);
 			Timber.Box(bench + Vector3.up * 2f, new Vector3(2.4f, 0.5f, 14f), bq, 3f);

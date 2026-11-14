@@ -103,8 +103,11 @@ namespace EurekaMine
 
 		internal static readonly List<Niche> Niches = new List<Niche>();
 
-		/// <summary>Points (8 units each) from one bulb to the next: at least BulbGap, plus up to BulbSpread - 1 more at random (half the gap in a chamber).</summary>
-		internal static int BulbGap = 3, BulbSpread = 4;
+		/// <summary>
+		/// Points (8 units each) from one bulb to the next: at least BulbGap, plus up to BulbSpread - 1 more at random (half the gap in a
+		/// chamber). 9 and 4 (about 84 units, ~100 bulbs) since 0.4.4: the owner found 0.4.3's 3 and 4 (230 bulbs) far too many.
+		/// </summary>
+		internal static int BulbGap = 9, BulbSpread = 4;
 
 		// ---- rough rock ---------------------------------------------------------------------------------------------------------
 
@@ -545,6 +548,9 @@ namespace EurekaMine
 		/// hazard or anywhere the passage would run into another road. In the old workings they are the rooms between the pillars, on both
 		/// sides and close together. Keyed by the first point (negative keys for a second niche at the same point).
 		/// </summary>
+		/// <summary>What the passages hold (see <c>Props.Fill</c>): brattice, stopping, mine car, supplies, barricade, pump; the big ones a locomotive and its car, or the man trip.</summary>
+		private static readonly int[] SmallKinds = { 0, 1, 2, 3, 4, 5 }, BigKinds = { 100, 105 };
+
 		private static Dictionary<int, Niche> PlanNiches(Road r, int inside)
 		{
 			Dictionary<int, Niche> plan = new Dictionary<int, Niche>();
@@ -568,8 +574,9 @@ namespace EurekaMine
 					}
 				}
 			}
-			int every = old ? 5 : 7;
-			int count = 0;
+			// fewer passages than 0.4.3 (every 7 points on the gangways, 5 in the old workings), so each can be one worth looking at
+			int every = old ? 8 : 14;
+			int count = 0, small = 0;
 			int last = r.Closed ? r.Count : r.Count - 1;
 			for (int i = inside + 4; i < last - 6; i += 1)
 			{
@@ -583,13 +590,18 @@ namespace EurekaMine
 				foreach (float side in new[] { count % 2 == 0 ? -1f : 1f })
 				{
 					Niche nc = new Niche { Road = r, I = i, Span = span, Side = side, Depth = old ? 34f : big ? 22f : 18f, High = PassageHigh };
-					nc.Kind = old ? (count * 7 + (side > 0 ? 3 : 0)) % 5 : big ? 100 + (count / 3) % 6 : count % 7;
+					nc.Kind = old ? (count * 7 + (side > 0 ? 3 : 0)) % 5 : big ? BigKinds[(count / 3) % BigKinds.Length] : SmallKinds[small % SmallKinds.Length];
 					if (!NicheFits(nc, false) || Overlaps(plan, nc))
 					{
 						continue;
 					}
 					int key = plan.ContainsKey(i) ? -1 - i : i;
 					plan[key] = nc;
+					if (!old && !big)
+					{
+						// its own count, so the small kinds take turns (counted with the big ones, every third skipped the same two)
+						small++;
+					}
 				}
 			}
 			return plan;
@@ -756,8 +768,16 @@ namespace EurekaMine
 			{
 				rock.Triangle(ids[steps][k], ids[steps][k + 1], tip);
 			}
-			Vector3 fa = pa, fc = pc, ba = pa + o * (nc.Depth + 2f), bc = pc + o * (nc.Depth + 2f);
-			fa.y = fc.y = ba.y = bc.y = nc.Mouth.y + 0.02f;
+			// the floor runs on under the rock all round (the rough rock stands back from the passage's line by up to several units, and
+			// 0.4.3's floor, cut to the opening, left gaps at its foot to see through), from a little inside the road, and slopes along the
+			// opening with the road (a flat floor at the lower corner left a step and a crack at the higher one); a hair under the road's
+			// floor, so where they overlap the road's shows
+			const float ext = 7f, lip = 1.5f, under = 0.12f;
+			float slope = (pc.y - pa.y) / Mathf.Max(nc.Width, 0.1f);
+			Vector3 fa = pa - nc.Along * ext - o * lip, fc = pc + nc.Along * ext - o * lip;
+			fa.y = pa.y - under - slope * ext;
+			fc.y = pc.y - under + slope * ext;
+			Vector3 ba = fa + o * (nc.Depth + 8f + lip), bc = fc + o * (nc.Depth + 8f + lip);
 			floor.QuadBoth(fa, fc, bc, ba, 12f);
 			Niches.Add(nc);
 		}
