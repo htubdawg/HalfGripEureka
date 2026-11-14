@@ -11,6 +11,8 @@ mkdir -p "$WORK"
 [ -d "$WORK/node_modules/three" ] || (cd "$WORK" && npm init -y >/dev/null && npm install three@0.160.0 >/dev/null)
 if ! dotnet build "$HERE/preview.csproj" -o "$WORK/bin" -v q --nologo > "$WORK/build.log"; then grep -E " error " "$WORK/build.log" | sort -u; exit 1; fi
 dotnet "$WORK/bin/preview.dll" "$WORK/scene.json"
-cp "$HERE/view.html" "$HERE/shoot.js" "$WORK/"
+cp "$HERE/view.html" "$HERE/shoot.js" "$HERE/holes.js" "$WORK/"
 python3 "$HERE/shots.py" "$WORK"
 (cd "$WORK" && node shoot.js "$OUT")
+# HOLES=1 also drives through every road looking for gaps in the mine (a few minutes; HOLES=2 for every second point)
+if [ -n "$HOLES" ]; then (cd "$WORK" && node holes.js "$OUT/holes" "$([ "$HOLES" = 2 ] && echo 2 || echo 6)"); fi

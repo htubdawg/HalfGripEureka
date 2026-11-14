@@ -12,11 +12,20 @@ internal static class Program
 	{
 		CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 		Route.Load();
+		// BULBS="gap,spread" tries other bulb spacings without editing Mine.cs
+		string bulbs = Environment.GetEnvironmentVariable("BULBS");
+		if (bulbs != null) { var bp = bulbs.Split(','); Mine.BulbGap = int.Parse(bp[0]); Mine.BulbSpread = int.Parse(bp[1]); }
 		Tex.Make();
 		var b = new Dictionary<string, Batch>();
 		var t0 = DateTime.Now;
 		Mine.Build(b);
 		Pithead.Build(b);
+		// GLOW="strength,near" tries other values of the painted light without editing Glow.cs
+		string tune = Environment.GetEnvironmentVariable("GLOW");
+		if (tune != null) { var parts = tune.Split(','); Glow.Strength = float.Parse(parts[0]); Glow.Near = float.Parse(parts[1]); }
+		var g0 = DateTime.Now;
+		int painted = Glow.Build(b);
+		Console.WriteLine("lamp light painted on " + painted + " triangles in " + (DateTime.Now - g0).TotalMilliseconds.ToString("0") + " ms");
 		Console.WriteLine("built in " + (DateTime.Now - t0).TotalMilliseconds.ToString("0") + " ms, lamps " + Mine.Lamps.Count);
 		var sb = new StringBuilder("{\"batches\":[");
 		var textures = new Dictionary<string, Texture2D>();
@@ -39,12 +48,25 @@ internal static class Program
 			for (int i = 0; i < m.U.Count; i++) { if (i > 0) sb.Append(','); sb.Append(m.U[i].x.ToString("0.###")).Append(',').Append(m.U[i].y.ToString("0.###")); }
 			sb.Append("],");
 			if (tex != null && tex.px != null) textures[tex.name] = tex;
+			if (m.C != null)
+			{
+				sb.Append("\"glow\":true,\"c\":[");
+				for (int i = 0; i < m.C.Count; i++) { if (i > 0) sb.Append(','); sb.Append(m.C[i].r.ToString("0.###")).Append(',').Append(m.C[i].g.ToString("0.###")).Append(',').Append(m.C[i].b.ToString("0.###")); }
+				sb.Append("],");
+			}
 			sb.Append("\"emissive\":").Append(kv.Value.Emission.maxColorComponent > 0.01f ? "true" : "false").Append(",\"v\":[");
 			for (int i = 0; i < m.V.Count; i++) { if (i > 0) sb.Append(','); sb.Append(m.V[i].x.ToString("0.##")).Append(',').Append(m.V[i].y.ToString("0.##")).Append(',').Append(m.V[i].z.ToString("0.##")); }
 			sb.Append("],\"t\":[").Append(string.Join(",", m.T)).Append("]}");
 		}
 		sb.Append("],\"lamps\":[");
 		for (int i = 0; i < Mine.Lamps.Count; i++) { if (i > 0) sb.Append(','); var p = Mine.Lamps[i]; sb.Append(p.x.ToString("0.#")).Append(',').Append(p.y.ToString("0.#")).Append(',').Append(p.z.ToString("0.#")); }
+		sb.Append("],\"niches\":[");
+		for (int i = 0; i < Mine.Niches.Count; i++)
+		{
+			var n = Mine.Niches[i]; if (i > 0) sb.Append(',');
+			sb.Append("{\"kind\":").Append(n.Kind).Append(",\"road\":\"").Append(n.Road.Name).Append("\",\"mouth\":[").Append(n.Mouth.x.ToString("0.#")).Append(',').Append(n.Mouth.y.ToString("0.#")).Append(',').Append(n.Mouth.z.ToString("0.#"))
+				.Append("],\"out\":[").Append(n.Out.x.ToString("0.###")).Append(',').Append(n.Out.y.ToString("0.###")).Append(',').Append(n.Out.z.ToString("0.###")).Append("],\"width\":").Append(n.Width.ToString("0.#")).Append(",\"depth\":").Append(n.Depth.ToString("0.#")).Append('}');
+		}
 		sb.Append("],\"textures\":{");
 		bool f3 = true;
 		foreach (var kv in textures)

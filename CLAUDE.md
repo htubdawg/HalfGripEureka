@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.0 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.6 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -38,11 +38,12 @@ The race starts in the pithead yard, runs down a slope into the mine, and every 
 | `Route.cs` | The roads (`Road`): points, widths, forks and joins; `InsideOther` (is a point inside another road's corridor) |
 | `MeshKit.cs`, `Textures.cs` | `Batch` (one mesh per texture/tint/behaviour), `Mats` (materials from the scene's ground shader), textures painted in code |
 | `Mine.cs` | Each road as one rough rock bore (`Shape`: straight ribs and an elliptical arch; `Rock`: that shape pushed back by ridged noise, `Sub` columns per 8-unit step, flat-shaded) round an invisible smooth guard of the same shape; side passages as short rough bores (`Niche`, `BuildNiche`); occasional posts; bulbs on the crown wire; puddles; rails; rubble heaps; the drift portal; the start line |
-| `Props.cs` | What fills the niches (machinery, curtains, stoppings, supplies...), utilities on the walls, chevrons on the bends, the signs, the pit bottom's shaft station and loading tracks |
+| `Props.cs` | What fills the niches (brattice, stopping, mine car, supplies, barricade, pump; locomotive and car, man trip), utilities on the walls, chevrons on the bends, the few signs, the pit bottom's shaft station and loading tracks |
 | `Pithead.cs` | The surface: ground, hill with highwalls, breaker, culm banks, siding, houses, church, headframe, boiler house |
 | `SceneBuilder.cs` | Orchestrates the build; the lap line and the four bot paths; the grid; labels |
 | `RunIn.cs` | Lap 1's run in: the lap-counter prefix, the player reset on the slope, the bots' slope path and handover, the gate |
-| `Underground.cs` | Darkness and headlights underground (Temple of Drift's method), and the lamp light pool |
+| `Glow.cs` | The bulbs' light painted at build time: per-vertex light (falloff, angle, open-air test against the roads and side passages) on a twin of every lit surface near a bulb, cut finer where the light changes |
+| `Underground.cs` | Darkness and headlights underground (Temple of Drift's method); the glow's material (`GlowMats`); the fallback lamp light pool |
 | `Hazards.cs` | Runaway mine cars on the plane, coal chutes, ventilation doors on the chute |
 
 ## The lap
@@ -73,12 +74,20 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
 - C# 10 and netstandard2.1 only. Tabs, `///` summaries that say why.
 - No people on the map (the owner's call): hazards are machinery.
 - No vanilla hazards (the owner's call): the Stadium's `HazardsSpawner_FINAL` is hidden.
-- **Lights:** the renderer gives each object only a few lights, so every batch is cut into 120-unit cells (`Batch.ToMeshes`) and
-  the lamp pool's lights are `Auto`, never `ForcePixel` (0.1.0 had one mesh per batch across the whole mine and Important lamp
-  lights: the headlights lit nothing). Keep both.
+- **Lights:** the bulbs' light is **painted at build time** (`Glow`), never real lights: every bulb lights its stretch at any
+  distance and nothing switches on or off in view (0.4.0 and 0.4.1 moved 8 real lights to the nearest bulbs: popping, then black past
+  them). The glow is a twin of each lit surface, its texture times vertex colours, drawn added (`GlowMats`: a copy of a scene material
+  on URP Particles/Unlit, so the variant exists in the build). Only the cars' headlights are real. The game is URP **Forward** with a
+  per-object limit of 8 (0.419 log), so batches are cut into 120-unit cells (`Batch.ToMeshes`) for the headlights (0.1.0's one mesh
+  per batch: they lit nothing). The old pool (`LampLights`) runs only if the glow's shader is missing.
 - **Nothing visible stands in the road unless it is solid and meant to be:** the cars touch invisible smooth guard walls and roof at
   the road's edge (straight across every side passage, so nothing snags, bots included); the rock, posts, pipes, cables and rubble
   are drawn just behind that line. Hazard doors are never solid (owner's call after 0.2.0).
+- **Show, don't tell** (the owner, after the first look in game): text only where a real mine has it and at a believable size (signs
+  about 6 to 12 wide, 2 to 4 high), never boards naming every stretch, arrows or repeated safety notes. Things say what they are by
+  their shape.
+- **Scale:** the car is 14.2 x 7.3 (its collider), so about 3 units to the metre; the track gauge (6.4) and the rolling stock sized
+  to it are a deliberate 1.8 times real size. Keep new pieces consistent with those.
 - Don't invent an `ObjectiveKind`. Never change `MapEntry.MapName` (saves find the map by it).
 
 ## Checking changes
@@ -94,10 +103,14 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   `PathManager.samplesPerSegment`/`snapLanesToGround`/`snapRayHeight`/`InitializePath`.
 - **Pictures without the game:** `art/preview/run.sh <outdir>` compiles `Mine`, `Pithead`, `Props`, `Route`, `MeshKit` and `Textures`
   against a stand-in for UnityEngine (`art/preview/Stubs.cs`) and draws the meshes, with their textures, in three.js in headless
-  Chromium; underground shots are lit by the 8 bulbs nearest the camera as the game's pool does (brighter than the game: no fog, its
-  own falloff). Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
+  Chromium; underground shots are lit by the painted glow as the game draws it (texture times vertex colour, added), with
+  `opts.pool` drawing 0.4.1's real-light pool instead; `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
   lacks, the preview build fails: add it to `Stubs.cs` with Unity's meaning (e.g. `Mathf.SmoothStep` interpolates). Add a shot to
   `art/preview/shots.py` for whatever changed, look at it, and send the owner pictures. Run with `TMPDIR` set to the scratchpad.
+- **Holes:** `HOLES=1 art/preview/run.sh <outdir>` also drives the camera through every road at car-eye height, looking four ways
+  against a magenta sky with no fog, and counts the views underground where magenta shows (`holes/holes.json`, pictures of the worst;
+  `HOLES=2` for every second point). Run it after any change to the rock, passages, floors or junctions: it must report 0.
+  `window.probe()` in `view.html` names what the rays round a hole hit.
 - **In game** only the owner can test. Say what to look at and which log lines (`Debug.VerboseLog`) tell the outcomes apart.
 
 ## Working with the owner
@@ -109,6 +122,59 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.6**: the hole scan at every 2nd point found one more kind: a passage on a grade was built level from its opening's lower
+  corner, so its mouth fell short of the rib's opening at the higher corner (a gap at the top corner, on the slope). The whole passage
+  (rock and face) now slopes along its opening with the road, as its floor does (`Rise` in `BuildNiche`). Left after it: hairlines of
+  2 to 4 pixels at haulage 199 and 261 (by the seam's fork and join).
+
+- **0.4.5** (owner, in game on 0.4.4: "still have giant gaps in the wall dude"): a hole scan in the preview (`holes.js`, see Checking
+  changes) found 75 views underground with holes at every 6th point. Causes: (1) every side passage's end face, a fan from its rim
+  to a point in the rock, never closed along the floor: a triangle from the floor to the face's middle was open in all of them (the
+  owner's screenshot); now closed. (2) Slivers under the passages' ribs where the floor slopes: their feet now stand 2.5 into the
+  floor (`Sink`). (3) At the forks and joins, the sliver between two tunnels parting: `JunctionFloors` lays a floor 0.3 under both,
+  bridging the centre lines and out past each tunnel's walls. After: 0 at every 6th point but 2 views of 2 to 11 pixels at the seam
+  fork (haulage 199), a hairline. 0.4.4's floor change was not the cause. Not checked: in game.
+
+- **0.4.4** (owner's first look in game at the painted light: "Lights look good but there's way too many of them"; the niche
+  dressing "looks pretty bad but I like the idea": back walls not meeting the floor, so you can see through the map, improper scale,
+  overly labeled; "do not remove ALL text, just keep it realistic and good looking"): bulbs every 9 to 12 points (option C of three:
+  102 bulbs, ~84 units apart; `Mine.BulbGap`/`BulbSpread`; the preview's `BULBS="gap,spread"`). Passage floors run 7 past the
+  opening's sides, 8 past its face and 1.5 into the road, sloped with the road along the opening, 0.12 under the road's floor.
+  Passages every 14 points (7 before), 8 in the old workings (5): 48 in all (92). Kinds: brattice, stopping, mine car, supplies,
+  barricade, pump (their own counter: counted with the big ones, two kinds never came up); big: locomotive and car, man trip. Gone:
+  first aid, power centre, shuttle car and bolter, continuous miner, the shanty (its flat glowing window looked bad in game).
+  Text: kept the plane's warning, "1 SOUTH", the old workings' danger board, "KEEP DOORS SHUT" on the chute, "NO SMOKING" on the
+  slope, the shaft's name and the safety board, all shrunk; the barricades' small "DANGER". Gone: the road-wide name boards, the
+  arrow signs, the safety notes every 23 points, the niche placards. Painted triangles 350k, 0.9 s in the preview. The machines'
+  scale was left alone (consistent with the 6.4 gauge); the owner did not say which pieces looked off. Checked: compiles with no
+  warnings; preview sheets of the bulb spacings and of every niche kind with a car-sized box. Not checked: in game; the passages'
+  floor corners in the preview's low shots (the camera sat partly in the rock).
+
+- **0.4.3** (owner: "why is the old version so much oranger ... the white lights don't look that good"): the glow's colour is now
+  the real lights' colour as URP lights with it, (1, 0.60, 0.26): a `Light.color` is a screen (gamma) colour converted to linear, a
+  vertex colour is used as it is, so 0.4.2's (1, 0.8, 0.55) came out nearly white. Strength 7.5, cap 4 (the pools near a bulb as
+  bright as 0.4.1's real lights). The preview's underground ambient is now the game's (`Underground`'s warm trilight), not a cool grey
+  hemisphere. ~527k painted triangles. **Any colour given to vertex colours must be the linear value of the intended colour.**
+
+- **0.4.2** (owner, on 0.4.1's video: "It shouldn't be pitch black off in the distance"; chose option A of four): the bulbs' light
+  painted at build time (`Glow.cs`). Each vertex near a bulb (46 units) gets 4 / (1 + (d / 8)^2), times the facing (wrapped by 0.2),
+  times URP's range window, capped at 2.5, warm; a bulb counts only if three points on the way are in open air (a road's width plus 6,
+  floor to roof plus 2, or a side passage's box), so light stays off the next level. Long triangles are halved where the light bends
+  (floor quads run 24 across). 408k painted triangles on the mine's 310k; 1.9 s to paint in the preview (more in game). The 0.4.1 log
+  showed `URP Forward, additional lights PerPixel, per-object limit 8 -> 8`, so 0.4.1's second cause (per-object limit) was wrong:
+  cells are back to 120. Checked: compiles with no warnings; preview stills and a drive, 0.4.1's pool against the paint. Not checked:
+  in game (the shader copy, the additive blend and fog over it, the load time). Log lines (always written): `Lamp glow drawn with a copy of ...`,
+  `Lamp light painted on N triangles in T ms`, or the warning that falls back to the pool.
+
+- **0.4.1** (owner: the ceiling lights' pools "pop into view very aggressively" along the long rows of lamps): two causes. The pool
+  of 8 lights jumped to the 8 nearest lamps every 0.25 s at full strength, so the farthest pools blinked on and off; and at 120-unit
+  cells 72% of the gangway cells were in reach of more than 4 lamps (median 6), past URP's usual per-object limit, so a cell lit by
+  only some of them showed hard seams that moved with the pool. Now: the fade described under Rules, height counted three times in
+  "nearest" (lamps on other levels stopped taking the pool), 60-unit cells (median 4 lamps, 94% at 6 or fewer; about twice the
+  renderers, ~3900), the per-object limit raised to 8. Checked: compiles with no warnings; a preview drive down the haulage, old pool
+  against new. Not checked: in game. The log line `Mine lamps: URP <mode>, additional lights <mode>, per-object limit A -> B` says
+  which renderer the game uses (Forward+ has no per-object limit, so there only the fade matters).
 
 - **0.4.0** (owner's look at the 0.3.0 previews: "the braces clip through the walls, the walls are an octagon", too much feature
   creep; reference photos of the No. 9 Mine): each road is one rough bore: `Shape` (ribs to 12, elliptical arch to the roof), pushed

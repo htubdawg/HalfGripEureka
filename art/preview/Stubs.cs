@@ -6,6 +6,8 @@ namespace UnityEngine
 {
 	public struct Vector2 { public float x, y; public Vector2(float x, float y) { this.x = x; this.y = y; } public static Vector2 zero => new Vector2(0, 0);
 		public static Vector2 operator /(Vector2 a, float d) => new Vector2(a.x / d, a.y / d);
+		public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
+		public static Vector2 operator *(Vector2 a, float d) => new Vector2(a.x * d, a.y * d);
 		public Vector2 normalized { get { float m = (float)Math.Sqrt(x * x + y * y); return m > 1e-6f ? new Vector2(x / m, y / m) : new Vector2(0, 0); } } }
 	public struct Vector3
 	{
@@ -89,8 +91,8 @@ namespace UnityEngine
 		public void SetTexture(string n, Texture2D t) { } public void SetColor(string n, Color c) { } public void SetFloat(string n, float f) { }
 		public void EnableKeyword(string k) { } public MaterialGlobalIlluminationFlags globalIlluminationFlags; }
 	public class Mesh : Object { public UnityEngine.Rendering.IndexFormat indexFormat;
-		public List<Vector3> V; public List<int> T; public List<Vector2> U;
-		public void SetVertices(List<Vector3> v) { V = v; } public void SetUVs(int c, List<Vector2> u) { U = u; } public void SetTriangles(List<int> t, int s) { T = t; }
+		public List<Vector3> V; public List<int> T; public List<Vector2> U; public List<Color> C;
+		public void SetVertices(List<Vector3> v) { V = v; } public void SetUVs(int c, List<Vector2> u) { U = u; } public void SetTriangles(List<int> t, int s) { T = t; } public void SetColors(List<Color> c) { C = c; }
 		public void RecalculateNormals() { } public void RecalculateBounds() { } }
 }
 namespace EurekaMine

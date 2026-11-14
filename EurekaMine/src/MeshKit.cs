@@ -33,10 +33,50 @@ namespace EurekaMine
 		internal bool Invisible;
 		internal Color Emission;
 		internal Surface Ground;
+		/// <summary>The lamps' light painted at build time (<see cref="Glow"/>): coloured vertices, drawn added over the surface beneath.</summary>
+		internal bool Glow;
 
 		private readonly List<Vector3> v = new List<Vector3>();
 		private readonly List<Vector2> uv = new List<Vector2>();
 		private readonly List<int> t = new List<int>();
+		private List<Color> col;
+
+		internal IReadOnlyList<Vector3> Vertices
+		{
+			get { return v; }
+		}
+
+		internal IReadOnlyList<Vector2> Uvs
+		{
+			get { return uv; }
+		}
+
+		internal IReadOnlyList<int> Indices
+		{
+			get { return t; }
+		}
+
+		/// <summary>A triangle with a colour at each corner (only for batches made of these alone).</summary>
+		internal void ColoredTri(Vector3 a, Vector3 b, Vector3 c, Vector2 ua, Vector2 ub, Vector2 uc, Color ca, Color cb, Color cc)
+		{
+			if (col == null)
+			{
+				col = new List<Color>();
+			}
+			int i = v.Count;
+			v.Add(a);
+			v.Add(b);
+			v.Add(c);
+			uv.Add(ua);
+			uv.Add(ub);
+			uv.Add(uc);
+			col.Add(ca);
+			col.Add(cb);
+			col.Add(cc);
+			t.Add(i);
+			t.Add(i + 1);
+			t.Add(i + 2);
+		}
 
 		internal Batch(string name, Texture2D tex, Color tint)
 		{
@@ -222,6 +262,7 @@ namespace EurekaMine
 				Dictionary<int, int> remap = new Dictionary<int, int>();
 				List<Vector3> cv = new List<Vector3>();
 				List<Vector2> cuv = new List<Vector2>();
+				List<Color> cc = col != null ? new List<Color>() : null;
 				List<int> ct = new List<int>();
 				foreach (int k in tris)
 				{
@@ -234,6 +275,7 @@ namespace EurekaMine
 							remap[old] = idx;
 							cv.Add(v[old]);
 							cuv.Add(uv[old]);
+							cc?.Add(col[old]);
 						}
 						ct.Add(idx);
 					}
@@ -241,6 +283,10 @@ namespace EurekaMine
 				Mesh m = new Mesh { name = Name, indexFormat = IndexFormat.UInt32 };
 				m.SetVertices(cv);
 				m.SetUVs(0, cuv);
+				if (cc != null)
+				{
+					m.SetColors(cc);
+				}
 				m.SetTriangles(ct, 0);
 				m.RecalculateNormals();
 				m.RecalculateBounds();
@@ -254,6 +300,10 @@ namespace EurekaMine
 			Mesh m = new Mesh { name = Name, indexFormat = IndexFormat.UInt32 };
 			m.SetVertices(v);
 			m.SetUVs(0, uv);
+			if (col != null)
+			{
+				m.SetColors(col);
+			}
 			m.SetTriangles(t, 0);
 			m.RecalculateNormals();
 			m.RecalculateBounds();

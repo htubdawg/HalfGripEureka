@@ -1,7 +1,7 @@
 {
 	"id": "eurekamine",
 	"name": "Eureka Mine",
-	"version": "0.4.0",
+	"version": "0.4.6",
 	"author": "Claude - Oretsej",
 	"description": "A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker; the race runs into the drift mouth and down the slope, and every lap after that is underground: the haulage, a plane where runaway mine cars break loose, the lower gangway under coal chutes, the old workings that cross over it, a spiral up to the upper gangway, the overcast above the haulage, and switchbacks with a coal chute beside them behind swinging ventilation doors. About 6.5 km a lap. Dealt into the run map like any other map.",
 	"icon": "icon.png",
