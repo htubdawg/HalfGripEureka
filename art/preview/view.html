@@ -8,6 +8,7 @@ const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:
 renderer.setSize(1280, 720); document.body.appendChild(renderer.domElement);
 const world = new THREE.Scene();
 const groups = {};
+const backs = [];
 for (const b of scene.batches) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(b.v, 3));
@@ -33,6 +34,18 @@ for (const b of scene.batches) {
   const m = b.glow ? new THREE.MeshBasicMaterial({map, vertexColors: true, side, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending})
     : b.emissive ? new THREE.MeshBasicMaterial({color: tint, map}) : new THREE.MeshLambertMaterial({color: tint, map, side});
   const mesh = new THREE.Mesh(g, m); mesh.name = b.name; world.add(mesh); groups[b.name] = mesh;
+  // opts.backs: one-sided surfaces seen from behind drawn magenta (the game culls them: from there the player sees through them)
+  // (a surface built both ways, as QuadBoth does, has nothing to see through: those triangles are left out of the twin)
+  let bg = g;
+  if (!b.two && !b.glow) {
+    const key = (i) => [b.v[3 * i], b.v[3 * i + 1], b.v[3 * i + 2]].map(x => x.toFixed(2)).join(',');
+    const tris = [], seen = new Set();
+    for (let i = 0; i < b.t.length; i += 3) { const k = [key(b.t[i]), key(b.t[i + 1]), key(b.t[i + 2])]; tris.push(k); const m = k.indexOf([...k].sort()[0]); seen.add([k[m], k[(m + 1) % 3], k[(m + 2) % 3]].join('|')); }
+    const keep = [];
+    for (let i = 0; i < tris.length; i++) { const k = [tris[i][0], tris[i][2], tris[i][1]]; const m = k.indexOf([...k].sort()[0]); if (!seen.has([k[m], k[(m + 1) % 3], k[(m + 2) % 3]].join('|'))) keep.push(idx[3 * i], idx[3 * i + 1], idx[3 * i + 2]); }
+    if (keep.length < idx.length) { bg = g.clone(); bg.setIndex(keep); }
+  }
+  if (!b.two && !b.glow) { const bk = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({color: 0xff00ff, side: THREE.BackSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4})); bk.name = b.name; bk.visible = false; world.add(bk); backs.push([b.name, bk]); }
 }
 world.add(new THREE.HemisphereLight(0xcfd6dc, 0x40382f, 1.1));
 const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-0.4, 1, 0.3); world.add(sun);
@@ -50,6 +63,7 @@ window.shot = (eye, at, opts={}) => {
   carBox.visible = !!opts.car;
   if (opts.car) { const [x, y, z, dx, dz] = opts.car; carBox.position.set(x, y + 1.41, -z); carBox.rotation.set(0, Math.atan2(dx, -dz), 0); }
   for (const [n, m] of Object.entries(groups)) m.visible = !(opts.hide||[]).some(h => n.includes(h)) && !(opts.pool && n.startsWith('glow'));
+  for (const [n, m] of backs) m.visible = !!opts.backs && !(opts.hide||[]).some(h => n.includes(h));
   world.background = new THREE.Color(opts.bg || 0x7a7c80);
   world.fog = opts.fog ? new THREE.Fog(opts.bg || 0x7a7c80, 10, opts.fog) : null;
   // underground, the game's haze (Glow.cs: Dark), drawn over a background of the fog's colour
@@ -94,6 +108,12 @@ window.probe = () => {
   }
   rc.setFromCamera(new THREE.Vector2(cx / 640 - 1, 1 - cy / 360), cam);
   return { n, cx, cy, dir: [rc.ray.direction.x, rc.ray.direction.y, -rc.ray.direction.z], hits };
+};
+// window.pick(x, y): what the ray through a pixel hits first, front faces and (opts.backs) back faces alike: names a magenta surface
+window.pick = (x, y) => {
+  const rc = new THREE.Raycaster(); rc.setFromCamera(new THREE.Vector2(x / 640 - 1, 1 - y / 360), cam);
+  const objs = Object.values(groups).filter(m => m.visible).concat(backs.map(b => b[1]).filter(m => m.visible));
+  return rc.intersectObjects(objs, false).slice(0, 3).map(h => ({ name: h.object.name, back: h.object.material.side === THREE.BackSide, p: [h.point.x, h.point.y, -h.point.z].map(v => Math.round(v * 10) / 10), d: Math.round(h.distance) }));
 };
 window.ready = true;
 </script></body></html>

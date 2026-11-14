@@ -272,7 +272,8 @@ namespace EurekaMine
 		internal void QuadBoth(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float tile)
 		{
 			Quad(a, b, c, d, tile);
-			Quad(d, c, b, a, tile);
+			// turned round on the same diagonal (a to c), so on a quad that is not flat the two faces are one surface
+			Quad(a, d, c, b, tile);
 		}
 
 		/// <summary>

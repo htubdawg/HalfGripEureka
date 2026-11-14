@@ -63,7 +63,7 @@ namespace UnityEngine
 	{
 		public const float PI = (float)Math.PI, Deg2Rad = PI / 180f, Rad2Deg = 180f / PI;
 		public static float Sin(float a) => (float)Math.Sin(a); public static float Cos(float a) => (float)Math.Cos(a);
-		public static float Sqrt(float a) => (float)Math.Sqrt(a); public static float Abs(float a) => Math.Abs(a); public static int Abs(int a) => Math.Abs(a);
+		public static float Sqrt(float a) => (float)Math.Sqrt(a); public static float Exp(float p) => (float)Math.Exp(p); public static float Abs(float a) => Math.Abs(a); public static int Abs(int a) => Math.Abs(a);
 		public static float Atan2(float y, float x) => (float)Math.Atan2(y, x);
 		public static float Clamp01(float v) => v < 0 ? 0 : v > 1 ? 1 : v;
 		public static float Clamp(float v, float a, float b) => v < a ? a : v > b ? b : v;

@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.8 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.9 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -115,6 +115,11 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   against a magenta sky with no fog, and counts the views underground where magenta shows (`holes/holes.json`, pictures of the worst;
   `HOLES=2` for every second point). Run it after any change to the rock, passages, floors or junctions: it must report 0.
   `window.probe()` in `view.html` names what the rays round a hole hit.
+- **Walls seen from behind:** `BACKS=1` with the hole scan (or `opts.backs` in a shot) draws every one-sided surface's back in magenta:
+  the game culls it, so from there the player sees through it (the owner's "1-way visible walls"). Surfaces built both ways (`QuadBoth`,
+  the rock at forks) are left out. `window.pick(x, y)` names what a pixel's ray hits, back faces included. After 0.4.9: 114 views of
+  1 to 91 pixels of 57,600, all slivers (the cable tube's open ends, rubble and spill edges, the seam's floor edge at its fork), and the
+  sky through the drift mouth looking back up the slope.
 - **In game** only the owner can test. Say what to look at and which log lines (`Debug.VerboseLog`) tell the outcomes apart.
 
 ## Working with the owner
@@ -126,6 +131,22 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.9** (owner, in game on 0.4.8, with a screenshot: "Still have a lot of 1-way visible walls and floors. The decorative side-rooms
+  still have 2D planes for walls instead of looking naturally embedded into the terrain"): a new check in the preview (`BACKS=1`, see
+  Checking changes) found 480 views underground showing one-sided rock from behind (see-through in game). Causes: (1) every side
+  passage's first rings flared out sideways and up into open air in front of the bore's rough rib, so from the road its outside showed:
+  a frame of see-through rock round every opening (the "2D planes"). Each passage vertex is now pushed back until the line from the
+  ring before it lies behind the bore's rock (`BoreDepth`, 8 samples, 1.6 clear). (2) Beside each opening the rib was pressed flat onto
+  the guard line for a whole point: a flat panel. Now the rib stays rough, softly squashed to within `MouthBack` (2.8; 5.6 for its top
+  row) of the guard over the opening and 6 units either side and let out by 2.5 points (`AtMouth`). (3) Openings were rectangles: now
+  a rough arch, open to row 3 at the two end columns, row 4 at the next, row 5 between (`TopRow`); the passage's first ring is the bore's
+  own vertices round it and the passage's section is matched to that outline by length (`Section`). (4) The brattice and the stopping
+  were flat rectangles in the mouth: now built to a ring of the passage's rock (`Props.Seal`), out to the rock all round. (5) At forks and
+  joins the rock between two tunnels parting showed its back to the other tunnel: within 40 units of another road the rock is built
+  both ways. Also `QuadBoth` turns its second face round on the same diagonal. After: 114 views of slivers (worst 91 pixels, was 14,656
+  of 57,600); hole scan 1 view of 2 pixels at haulage 199 (the hairline 0.4.6 left); rock in the road unchanged (pit bottom only);
+  ~690k preview triangles (665k). Checked: compiles with no warnings; preview sheets before and after. Not checked: in game.
 
 - **0.4.8** (owner, in game on 0.4.7, with screenshots; the light changes not yet tried): (1) houses "look bad and have 2 chimneys",
   the church "some sort of weird mosque or orthodox style": `Village.cs` builds company double houses (stone foundation, clapboard

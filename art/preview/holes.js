@@ -16,7 +16,8 @@ const server = http.createServer((req, res) => {
   page.on('pageerror', e => console.log('error:', e.message));
   await page.goto('http://localhost:8768/view.html');
   await page.waitForFunction(() => window.ready === true, null, { timeout: 120000 });
-  const views = await page.evaluate((step) => {
+  const backs = !!process.env.BACKS;
+  const views = await page.evaluate(([step, backs]) => {
     const res = [];
     const c2 = document.createElement('canvas'); c2.width = 320; c2.height = 180; const ctx = c2.getContext('2d', { willReadFrequently: true });
     const gl = document.querySelector('canvas');
@@ -28,7 +29,7 @@ const server = http.createServer((req, res) => {
         const dirs = { ahead: [fx, fz], back: [-fx, -fz], left: [-fz, fx], right: [fz, -fx] };
         for (const [dn, d] of Object.entries(dirs)) {
           const eye = [a[0], a[1] + 4, a[2]], at = [a[0] + d[0] * 20, a[1] + 3, a[2] + d[1] * 20];
-          window.shot(eye, at, { dark: true, bg: 0xff00ff, hide: ['ground', 'hill top'], head: 60 });
+          window.shot(eye, at, { dark: true, bg: 0xff00ff, hide: ['ground', 'hill top'], head: 60, backs });
           ctx.drawImage(gl, 0, 0, 320, 180);
           const px = ctx.getImageData(0, 0, 320, 180).data; let m = 0;
           for (let k = 0; k < px.length; k += 4) if (px[k] > 200 && px[k + 1] < 60 && px[k + 2] > 200) m++;
@@ -37,7 +38,7 @@ const server = http.createServer((req, res) => {
       }
     }
     return res.sort((p, q) => q.magenta - p.magenta);
-  }, step);
+  }, [step, backs]);
   fs.writeFileSync(path.join(out, 'holes.json'), JSON.stringify(views, null, 1));
   // in the open (the yard, and looking back up the slope at the drift mouth) the sky is meant to show
   const under = views.filter(v => v.eye[1] < -12 && !(v.road === 'slope' && v.dir === 'back'));
@@ -45,7 +46,7 @@ const server = http.createServer((req, res) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   for (let k = 0; k < Math.min(12, views.length); k++) {
     const v = views[k];
-    await page.evaluate(([e, a]) => window.shot(e, a, { dark: true, bg: 0xff00ff, hide: ['ground', 'hill top'], head: 60 }), [v.eye, v.at]);
+    await page.evaluate(([e, a, b]) => window.shot(e, a, { dark: true, bg: 0xff00ff, hide: ['ground', 'hill top'], head: 60, backs: b }), [v.eye, v.at, backs]);
     await page.screenshot({ path: path.join(out, 'hole_' + k + '.png') });
   }
   console.log(views.length + ' views with holes');
