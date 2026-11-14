@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.1 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.2 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -42,7 +42,8 @@ The race starts in the pithead yard, runs down a slope into the mine, and every 
 | `Pithead.cs` | The surface: ground, hill with highwalls, breaker, culm banks, siding, houses, church, headframe, boiler house |
 | `SceneBuilder.cs` | Orchestrates the build; the lap line and the four bot paths; the grid; labels |
 | `RunIn.cs` | Lap 1's run in: the lap-counter prefix, the player reset on the slope, the bots' slope path and handover, the gate |
-| `Underground.cs` | Darkness and headlights underground (Temple of Drift's method), and the lamp light pool |
+| `Glow.cs` | The bulbs' light painted at build time: per-vertex light (falloff, angle, open-air test against the roads and side passages) on a twin of every lit surface near a bulb, cut finer where the light changes |
+| `Underground.cs` | Darkness and headlights underground (Temple of Drift's method); the glow's material (`GlowMats`); the fallback lamp light pool |
 | `Hazards.cs` | Runaway mine cars on the plane, coal chutes, ventilation doors on the chute |
 
 ## The lap
@@ -73,12 +74,12 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
 - C# 10 and netstandard2.1 only. Tabs, `///` summaries that say why.
 - No people on the map (the owner's call): hazards are machinery.
 - No vanilla hazards (the owner's call): the Stadium's `HazardsSpawner_FINAL` is hidden.
-- **Lights:** URP's forward renderer gives each object only its few most important lights, so every batch is cut into 60-unit cells
-  (`Batch.ToMeshes`; 120 in 0.4.0 left most cells in reach of more lamps than the limit), `LampLights` raises the URP asset's
-  per-object limit to 8 while the mine is loaded (put back in `OnDestroy`), and the lamp pool's lights are `Auto`, never
-  `ForcePixel` (0.1.0 had one mesh per batch and Important lamp lights: the headlights lit nothing). **No light may switch on or off
-  in view:** each pool light keeps its lamp while it stays among the nearest, and fades to nothing at the distance of the nearest
-  lamp left out, every frame (0.4.0 snapped the pool to the nearest 8 every 0.25 s: pools ahead popped in and out). Keep all of it.
+- **Lights:** the bulbs' light is **painted at build time** (`Glow`), never real lights: every bulb lights its stretch at any
+  distance and nothing switches on or off in view (0.4.0 and 0.4.1 moved 8 real lights to the nearest bulbs: popping, then black past
+  them). The glow is a twin of each lit surface, its texture times vertex colours, drawn added (`GlowMats`: a copy of a scene material
+  on URP Particles/Unlit, so the variant exists in the build). Only the cars' headlights are real. The game is URP **Forward** with a
+  per-object limit of 8 (0.419 log), so batches are cut into 120-unit cells (`Batch.ToMeshes`) for the headlights (0.1.0's one mesh
+  per batch: they lit nothing). The old pool (`LampLights`) runs only if the glow's shader is missing.
 - **Nothing visible stands in the road unless it is solid and meant to be:** the cars touch invisible smooth guard walls and roof at
   the road's edge (straight across every side passage, so nothing snags, bots included); the rock, posts, pipes, cables and rubble
   are drawn just behind that line. Hazard doors are never solid (owner's call after 0.2.0).
@@ -97,8 +98,8 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   `PathManager.samplesPerSegment`/`snapLanesToGround`/`snapRayHeight`/`InitializePath`.
 - **Pictures without the game:** `art/preview/run.sh <outdir>` compiles `Mine`, `Pithead`, `Props`, `Route`, `MeshKit` and `Textures`
   against a stand-in for UnityEngine (`art/preview/Stubs.cs`) and draws the meshes, with their textures, in three.js in headless
-  Chromium; underground shots are lit by the 8 bulbs nearest the camera as the game's pool does (brighter than the game: no fog, its
-  own falloff). Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
+  Chromium; underground shots are lit by the painted glow as the game draws it (texture times vertex colour, added), with
+  `opts.pool` drawing 0.4.1's real-light pool instead; `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
   lacks, the preview build fails: add it to `Stubs.cs` with Unity's meaning (e.g. `Mathf.SmoothStep` interpolates). Add a shot to
   `art/preview/shots.py` for whatever changed, look at it, and send the owner pictures. Run with `TMPDIR` set to the scratchpad.
 - **In game** only the owner can test. Say what to look at and which log lines (`Debug.VerboseLog`) tell the outcomes apart.
@@ -112,6 +113,16 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.2** (owner, on 0.4.1's video: "It shouldn't be pitch black off in the distance"; chose option A of four): the bulbs' light
+  painted at build time (`Glow.cs`). Each vertex near a bulb (46 units) gets 4 / (1 + (d / 8)^2), times the facing (wrapped by 0.2),
+  times URP's range window, capped at 2.5, warm; a bulb counts only if three points on the way are in open air (a road's width plus 6,
+  floor to roof plus 2, or a side passage's box), so light stays off the next level. Long triangles are halved where the light bends
+  (floor quads run 24 across). 408k painted triangles on the mine's 310k; 1.9 s to paint in the preview (more in game). The 0.4.1 log
+  showed `URP Forward, additional lights PerPixel, per-object limit 8 -> 8`, so 0.4.1's second cause (per-object limit) was wrong:
+  cells are back to 120. Checked: compiles with no warnings; preview stills and a drive, 0.4.1's pool against the paint. Not checked:
+  in game (the shader copy, the additive blend and fog over it, the load time). Log lines (always written): `Lamp glow drawn with a copy of ...`,
+  `Lamp light painted on N triangles in T ms`, or the warning that falls back to the pool.
 
 - **0.4.1** (owner: the ceiling lights' pools "pop into view very aggressively" along the long rows of lamps): two causes. The pool
   of 8 lights jumped to the 8 nearest lamps every 0.25 s at full strength, so the farthest pools blinked on and off; and at 120-unit

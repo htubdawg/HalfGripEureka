@@ -124,12 +124,24 @@ namespace EurekaMine
 
 			Tex.Make();
 			Mats.Reset(source);
+			GlowMats.Reset();
 			Labels.Clear();
 			root = new GameObject("EurekaMine");
 
 			Dictionary<string, Batch> batches = new Dictionary<string, Batch>();
 			Mine.Build(batches);
 			Pithead.Build(batches);
+			bool glow = GlowMats.CanGlow();
+			if (glow)
+			{
+				float g0 = Time.realtimeSinceStartup;
+				int painted = Glow.Build(batches);
+				Mod.Log.LogInfo("Lamp light painted on " + painted + " triangles in " + ((Time.realtimeSinceStartup - g0) * 1000f).ToString("0") + " ms");
+			}
+			else
+			{
+				Mod.Log.LogWarning("No Particles/Unlit shader in the scene: the lamps' light is not painted, real lights are moved to the nearest lamps instead");
+			}
 			int triangles = 0, meshes = 0;
 			foreach (Batch batch in batches.Values)
 			{
@@ -148,7 +160,10 @@ namespace EurekaMine
 			GameObject logic = new GameObject("Mine logic") { layer = layer };
 			logic.transform.SetParent(root.transform, false);
 			logic.AddComponent<Underground>().Setup(tm);
-			logic.AddComponent<LampLights>().Setup(Mod.Lights.Value);
+			if (!glow)
+			{
+				logic.AddComponent<LampLights>().Setup(Mod.Lights.Value);
+			}
 			RunIn tracker = logic.AddComponent<RunIn>();
 			tracker.Setup(tm, line, root.transform, layer);
 			Hazards.Build(root.transform, layer, tm);
@@ -174,18 +189,14 @@ namespace EurekaMine
 			}
 		}
 
-		/// <summary>
-		/// Size of the cells the batches are cut into (see <see cref="Batch.ToMeshes"/>). 60, not 120 (0.4.0): a 120-unit stretch of
-		/// gangway was in reach of six or seven lamps, more than the renderer lights one object with; at 60 nearly all are in reach of
-		/// six or fewer, which leaves room for the headlights.
-		/// </summary>
-		private const float Cell = 60f;
+		/// <summary>Size of the cells the batches are cut into (see <see cref="Batch.ToMeshes"/>).</summary>
+		private const float Cell = 120f;
 
 		/// <summary>Makes the objects (one per cell), renderers, colliders and surface behaviour of a batch. Returns its triangle count.</summary>
 		private static int Spawn(Batch batch, Transform parent, int layer)
 		{
 			int triangles = 0;
-			Material material = Mats.Get(batch.Tex, batch.Tint, batch.TwoSided, batch.Emission, batch.Smooth);
+			Material material = batch.Glow ? GlowMats.For(batch.Tex, batch.TwoSided) : Mats.Get(batch.Tex, batch.Tint, batch.TwoSided, batch.Emission, batch.Smooth);
 			foreach (Mesh mesh in batch.ToMeshes(Cell))
 			{
 				GameObject go = new GameObject(batch.Name) { layer = layer };

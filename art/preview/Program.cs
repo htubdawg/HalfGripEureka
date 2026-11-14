@@ -17,6 +17,12 @@ internal static class Program
 		var t0 = DateTime.Now;
 		Mine.Build(b);
 		Pithead.Build(b);
+		// GLOW="strength,near" tries other values of the painted light without editing Glow.cs
+		string tune = Environment.GetEnvironmentVariable("GLOW");
+		if (tune != null) { var parts = tune.Split(','); Glow.Strength = float.Parse(parts[0]); Glow.Near = float.Parse(parts[1]); }
+		var g0 = DateTime.Now;
+		int painted = Glow.Build(b);
+		Console.WriteLine("lamp light painted on " + painted + " triangles in " + (DateTime.Now - g0).TotalMilliseconds.ToString("0") + " ms");
 		Console.WriteLine("built in " + (DateTime.Now - t0).TotalMilliseconds.ToString("0") + " ms, lamps " + Mine.Lamps.Count);
 		var sb = new StringBuilder("{\"batches\":[");
 		var textures = new Dictionary<string, Texture2D>();
@@ -39,6 +45,12 @@ internal static class Program
 			for (int i = 0; i < m.U.Count; i++) { if (i > 0) sb.Append(','); sb.Append(m.U[i].x.ToString("0.###")).Append(',').Append(m.U[i].y.ToString("0.###")); }
 			sb.Append("],");
 			if (tex != null && tex.px != null) textures[tex.name] = tex;
+			if (m.C != null)
+			{
+				sb.Append("\"glow\":true,\"c\":[");
+				for (int i = 0; i < m.C.Count; i++) { if (i > 0) sb.Append(','); sb.Append(m.C[i].r.ToString("0.###")).Append(',').Append(m.C[i].g.ToString("0.###")).Append(',').Append(m.C[i].b.ToString("0.###")); }
+				sb.Append("],");
+			}
 			sb.Append("\"emissive\":").Append(kv.Value.Emission.maxColorComponent > 0.01f ? "true" : "false").Append(",\"v\":[");
 			for (int i = 0; i < m.V.Count; i++) { if (i > 0) sb.Append(','); sb.Append(m.V[i].x.ToString("0.##")).Append(',').Append(m.V[i].y.ToString("0.##")).Append(',').Append(m.V[i].z.ToString("0.##")); }
 			sb.Append("],\"t\":[").Append(string.Join(",", m.T)).Append("]}");

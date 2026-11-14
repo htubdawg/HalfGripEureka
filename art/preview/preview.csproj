@@ -3,6 +3,6 @@
   <EnableDefaultCompileItems>false</EnableDefaultCompileItems><NoWarn>CS0649;CS0169;CS0414</NoWarn></PropertyGroup>
   <ItemGroup>
     <Compile Include="Stubs.cs;Program.cs" />
-    <Compile Include="../../EurekaMine/src/MeshKit.cs;../../EurekaMine/src/Textures.cs;../../EurekaMine/src/Route.cs;../../EurekaMine/src/RouteData.cs;../../EurekaMine/src/Mine.cs;../../EurekaMine/src/Pithead.cs;../../EurekaMine/src/Props.cs" />
+    <Compile Include="../../EurekaMine/src/MeshKit.cs;../../EurekaMine/src/Textures.cs;../../EurekaMine/src/Route.cs;../../EurekaMine/src/RouteData.cs;../../EurekaMine/src/Mine.cs;../../EurekaMine/src/Pithead.cs;../../EurekaMine/src/Props.cs;../../EurekaMine/src/Glow.cs" />
   </ItemGroup>
 </Project>

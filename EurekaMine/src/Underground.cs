@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace EurekaMine
 {
@@ -240,8 +241,92 @@ namespace EurekaMine
 		}
 	}
 
+	/// <summary>Materials for the painted lamp light (<see cref="Glow"/>). Freed with the scene.</summary>
+	internal static class GlowMats
+	{
+		private static Material glowSource;
+		private static readonly Dictionary<string, Material> cache = new Dictionary<string, Material>();
+
+		internal static void Reset()
+		{
+			glowSource = null;
+			cache.Clear();
+		}
+
+		/// <summary>
+		/// Whether the painted lamp light can be drawn: it needs URP's Particles/Unlit (texture times vertex colour, no lighting of its
+		/// own), which the Stadium loads for its rain. A copy of a material already using it is taken, so the shader variant is one the
+		/// game's build kept.
+		/// </summary>
+		internal static bool CanGlow()
+		{
+			if (glowSource != null)
+			{
+				return true;
+			}
+			const string name = "Universal Render Pipeline/Particles/Unlit";
+			foreach (Material m in Resources.FindObjectsOfTypeAll<Material>())
+			{
+				if (m != null && m.shader != null && m.shader.name == name)
+				{
+					glowSource = m;
+					break;
+				}
+			}
+			if (glowSource == null)
+			{
+				Shader shader = Shader.Find(name);
+				if (shader != null)
+				{
+					glowSource = new Material(shader);
+				}
+			}
+			if (glowSource != null)
+			{
+				Mod.Log.LogInfo("Lamp glow drawn with a copy of '" + glowSource.name + "', keywords: " + string.Join(" ", glowSource.shaderKeywords));
+			}
+			return glowSource != null;
+		}
+
+		/// <summary>
+		/// The painted lamp light over a surface: its texture times the vertex colours, added to what is beneath (so the light falls on the
+		/// rock's own colours), no depth written, no fading near the camera or the walls.
+		/// </summary>
+		internal static Material For(Texture2D tex, bool twoSided)
+		{
+			string key = "glow|" + (tex != null ? tex.GetInstanceID().ToString() : "-") + "|" + twoSided;
+			if (cache.TryGetValue(key, out Material m) && m != null)
+			{
+				return m;
+			}
+			m = new Material(glowSource) { name = "Eureka glow " + (tex != null ? tex.name : "plain") };
+			foreach (string k in new[] { "_SOFTPARTICLES_ON", "_FADING_ON", "_DISTORTION_ON", "_FLIPBOOKBLENDING_ON", "_ALPHATEST_ON", "_ALPHAPREMULTIPLY_ON", "_ALPHAMODULATE_ON", "_COLOROVERLAY_ON", "_COLORCOLOR_ON", "_COLORADDSUBDIFF_ON" })
+			{
+				m.DisableKeyword(k);
+			}
+			m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+			m.SetTexture("_BaseMap", tex);
+			m.SetTextureScale("_BaseMap", Vector2.one);
+			m.SetTextureOffset("_BaseMap", Vector2.zero);
+			m.SetColor("_BaseColor", Color.white);
+			m.SetFloat("_Surface", 1f);
+			m.SetFloat("_Blend", 2f);
+			m.SetFloat("_SrcBlend", (float)BlendMode.One);
+			m.SetFloat("_DstBlend", (float)BlendMode.One);
+			m.SetFloat("_ZWrite", 0f);
+			m.SetFloat("_Cull", twoSided ? 0f : 2f);
+			m.SetFloat("_SoftParticlesEnabled", 0f);
+			m.SetFloat("_CameraFadingEnabled", 0f);
+			m.renderQueue = (int)RenderQueue.Transparent - 10;
+			cache[key] = m;
+			return m;
+		}
+
+	}
+
 	/// <summary>
-	/// The mine's lamps glow on their own; a handful of real point lights sit at the lamps nearest the camera, so the haulage is lit in
+	/// Only when the lamps' light cannot be painted (<see cref="Glow"/>, no Particles/Unlit shader in the scene): a handful of real point
+	/// lights sit at the lamps nearest the camera, so the haulage is lit in
 	/// pools round the player without paying for hundreds of lights. Nothing may switch on or off where it can be seen (0.4.0 moved the
 	/// whole pool to the nearest lamps four times a second, so the pools far ahead blinked in and out): each light keeps its lamp for as
 	/// long as that lamp stays among the nearest, and its brightness falls smoothly to nothing at the distance of the nearest lamp left
@@ -292,9 +377,8 @@ namespace EurekaMine
 		}
 
 		/// <summary>
-		/// URP's forward renderer lights each object with only its few most important lights (the asset's per-object limit, often 4): a
-		/// stretch of rock in reach of more pool lights than that dropped some of their pools, and which ones changed as the pool moved. The
-		/// limit is raised to URP's most while the mine is loaded and put back after. Forward+ has no such limit and ignores it.
+		/// URP's forward renderer lights each object with only its few most important lights (the asset's per-object limit; the game's is
+		/// already 8, the most, on 0.419): raised to the most while the mine is loaded, in case a later game lowers it, and put back after.
 		/// </summary>
 		private void RaiseLightLimit()
 		{
