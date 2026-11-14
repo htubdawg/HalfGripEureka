@@ -92,12 +92,18 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   (ilspycmd, see HalfGripRefs' `tools/README.md`): `LapManager.GetCarProjectedPoint`/`carLastClosestIndex`, `MenuManager.TrackIndex`,
   `TrackManager.SpawnEnemies`/`playerStart`/`startPositions`, `EnemyController.lastSearchIndex`, `PlayerResetLogic.player`,
   `PathManager.samplesPerSegment`/`snapLanesToGround`/`snapRayHeight`/`InitializePath`.
-- **Pictures without the game:** `art/preview/run.sh <outdir>` compiles `Mine`, `Pithead`, `Route`, `MeshKit` and `Textures` against a
-  stand-in for UnityEngine and draws the meshes with three.js in headless Chromium. Plain colours, no game lighting: for shapes and
-  junctions. Add a shot to `art/preview/shots.py` for whatever changed.
+- **Pictures without the game:** `art/preview/run.sh <outdir>` compiles `Mine`, `Pithead`, `Props`, `Route`, `MeshKit` and `Textures`
+  against a stand-in for UnityEngine (`art/preview/Stubs.cs`) and draws the meshes, with their textures, in three.js in headless
+  Chromium; underground shots are lit by the 8 bulbs nearest the camera as the game's pool does (brighter than the game: no fog, its
+  own falloff). Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
+  lacks, the preview build fails: add it to `Stubs.cs` with Unity's meaning (e.g. `Mathf.SmoothStep` interpolates). Add a shot to
+  `art/preview/shots.py` for whatever changed, look at it, and send the owner pictures. Run with `TMPDIR` set to the scratchpad.
 - **In game** only the owner can test. Say what to look at and which log lines (`Debug.VerboseLog`) tell the outcomes apart.
 
 ## Working with the owner
+
+- The owner tests in game and judges by eye; send preview pictures with every look change, and say plainly what was not checked.
+- The owner wants the look right first and dislikes features nobody asked for. When the owner shares reference photos, follow them.
 
 - Propose with evidence (drawings, numbers), get a go-ahead, then implement. Don't re-ask what the owner already answered.
 - Push to the session's branch; open a PR only when asked.
@@ -142,5 +148,10 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   decompile; the preview pictures show the tunnels, junctions (a floor hole at the slope's merge was found and fixed) and the pithead.
 - **Not done yet:** the owner's music (OGG, to come; `MapDefinition.musicTrack`), MiniMap check, and in-game tuning (grip values,
   hazard timing, lamp brightness, the benchmark times).
+- **Where it stands (after 0.4.0):** the owner liked the 0.4.0 previews ("This is great") but has not loaded 0.2.0 or later in game.
+  Known rough spots seen in the previews: the old-workings rooms' edges are flat-ish where they meet the rib, and the rubble heaps
+  read as mounds. Offered, not asked for: a timber walkway with a handrail along one side and yellow mine machinery (both in the
+  owner's No. 9 photos). The niche contents, chevrons, signs, pit bottom dressing and pithead from 0.2.0 are still built (`Props`,
+  `Pithead`); the dust particles (0.3.0) are still in `Underground`. Ask before adding anything new.
 - **Things to watch in the first test:** the run in (lap counter shows lap 1 only after the start line; positions on the slope), bots
   handing over from the slope path, the gate shutting, bots on the spiral and the hairpins, the doors' trigger, the lamps' light pool.
