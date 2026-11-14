@@ -2,7 +2,7 @@
 
 # Eureka Mine for Half Grip
 
-**Version 0.4.2** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
+**Version 0.4.3** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
 
 A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker. The race runs into the drift mouth and
 down the slope, and every lap after that is underground. It is dealt into your runs like any other map.

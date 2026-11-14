@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.2 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.3 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -113,6 +113,12 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.3** (owner: "why is the old version so much oranger ... the white lights don't look that good"): the glow's colour is now
+  the real lights' colour as URP lights with it, (1, 0.60, 0.26): a `Light.color` is a screen (gamma) colour converted to linear, a
+  vertex colour is used as it is, so 0.4.2's (1, 0.8, 0.55) came out nearly white. Strength 7.5, cap 4 (the pools near a bulb as
+  bright as 0.4.1's real lights). The preview's underground ambient is now the game's (`Underground`'s warm trilight), not a cool grey
+  hemisphere. ~527k painted triangles. **Any colour given to vertex colours must be the linear value of the intended colour.**
 
 - **0.4.2** (owner, on 0.4.1's video: "It shouldn't be pitch black off in the distance"; chose option A of four): the bulbs' light
   painted at build time (`Glow.cs`). Each vertex near a bulb (46 units) gets 4 / (1 + (d / 8)^2), times the facing (wrapped by 0.2),

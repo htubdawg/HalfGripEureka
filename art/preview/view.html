@@ -59,7 +59,11 @@ window.shot = (eye, at, opts={}) => {
     const fade = 1 - x * x * (3 - 2 * x);
     l.position.copy(near[k]); l.intensity = opts.dark && opts.pool ? 260 * fade : 0;
   });
-  if (opts.dark) { world.children.filter(o => o.isHemisphereLight).forEach(h => h.intensity = opts.amb ?? 0.55); } else { world.children.filter(o => o.isHemisphereLight).forEach(h => h.intensity = 1.1); }
+  // underground, the game's own fixed ambient (Underground.cs: sky 0.30, 0.28, 0.25, ground 0.13, 0.12, 0.11, intensity 1)
+  for (const h of world.children.filter(o => o.isHemisphereLight)) {
+    if (opts.dark) { h.color.setRGB(0.30, 0.28, 0.25, THREE.SRGBColorSpace); h.groundColor.setRGB(0.13, 0.12, 0.11, THREE.SRGBColorSpace); h.intensity = opts.amb ?? 1; }
+    else { h.color.set(0xcfd6dc); h.groundColor.set(0x40382f); h.intensity = 1.1; }
+  }
   renderer.render(world, cam);
   return true;
 };

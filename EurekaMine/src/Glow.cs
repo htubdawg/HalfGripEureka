@@ -16,7 +16,7 @@ namespace EurekaMine
 		internal const float Range = 46f;
 
 		/// <summary>Brightness at the bulb, and the distance at which it has fallen to half.</summary>
-		internal static float Strength = 4f;
+		internal static float Strength = 7.5f;
 		internal static float Near = 8f;
 
 		/// <summary>A little light on faces turned away from the bulb too (light bouncing off wet rock), so the rough faces don't go stark.</summary>
@@ -34,9 +34,14 @@ namespace EurekaMine
 		private const float Lift = 0.04f;
 
 		/// <summary>Brightest a painted vertex may be (right under a bulb).</summary>
-		private const float Cap = 2.5f;
+		private const float Cap = 4f;
 
-		private static readonly Color Warm = new Color(1f, 0.8f, 0.55f);
+		/// <summary>
+		/// The bulbs' colour as the renderer works with it: the real lights' (1, 0.8, 0.55) is a screen colour, which Unity turns into
+		/// (1, 0.60, 0.26) before lighting with it; vertex colours are used as they are, so the painted light takes the converted value
+		/// (0.4.2 used the screen colour and came out nearly white).
+		/// </summary>
+		private static readonly Color Warm = new Color(1f, 0.604f, 0.262f);
 
 		private const float Slack = 6f;
 
