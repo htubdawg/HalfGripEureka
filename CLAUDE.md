@@ -148,7 +148,9 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   the back of the haulage's rock); rubble heaps sink by the lean. So the first switchback (on the chute's fork) stays flat. Steepest along a banked edge
   15.9% (the dip's S-bend; the road's own steepest 10.8%). The bore, guard, posts, rails, puddles, rubble, passages, cable, chevrons,
   signs and coal chutes follow it. Checked: layout clearance 0; compiles with no warnings; preview before/after of the spiral, hairpin
-  and dip; rock in the road unchanged (462: the chamber's ends and the dust bags); hole scan (see below). Not checked: in game (how it
+  and dip; rock in the road unchanged (462: the chamber's ends and the dust bags); hole and back-face scan (`HOLES=1 BACKS=1`) against
+  0.4.10: 118 views underground against 114, 3005 magenta pixels against 3022, the same slivers moved by 1 to 3 pixels (two new ones it
+  found, at the hairpin's rubble and the slope's merge, fixed). Not checked: in game (how it
   drives, the bots on banked bends).
 
 - **0.4.10** (owner, in game on 0.4.9: "Track is looking good but the headlights seem to not do a whole lot"; check nothing interferes,
