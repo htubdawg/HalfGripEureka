@@ -71,5 +71,23 @@ window.shot = (eye, at, opts={}) => {
   renderer.render(world, cam);
   return true;
 };
+// window.probe(): after a shot, the magenta (open) pixels' middle and what the rays just round it hit (batch, point): finds a hole's edges
+window.probe = () => {
+  const c2 = document.createElement('canvas'); c2.width = 1280; c2.height = 720; const ctx = c2.getContext('2d');
+  ctx.drawImage(renderer.domElement, 0, 0); const px = ctx.getImageData(0, 0, 1280, 720).data;
+  let sx = 0, sy = 0, n = 0;
+  for (let y = 0; y < 720; y += 2) for (let x = 0; x < 1280; x += 2) { const k = (y * 1280 + x) * 4; if (px[k] > 200 && px[k + 1] < 60 && px[k + 2] > 200) { sx += x; sy += y; n++; } }
+  if (!n) return null;
+  const cx = sx / n, cy = sy / n, rc = new THREE.Raycaster(), hits = [];
+  const vis = Object.values(groups).filter(m => m.visible);
+  for (let a = 0; a < 16; a++) for (const r of [6, 14, 30]) {
+    const x = cx + Math.cos(a * Math.PI / 8) * r, y = cy + Math.sin(a * Math.PI / 8) * r;
+    rc.setFromCamera(new THREE.Vector2(x / 640 - 1, 1 - y / 360), cam);
+    const h = rc.intersectObjects(vis, false)[0];
+    hits.push(h ? { name: h.object.name, p: [h.point.x, h.point.y, -h.point.z].map(v => Math.round(v * 10) / 10), d: Math.round(h.distance) } : { name: 'none' });
+  }
+  rc.setFromCamera(new THREE.Vector2(cx / 640 - 1, 1 - cy / 360), cam);
+  return { n, cx, cy, dir: [rc.ray.direction.x, rc.ray.direction.y, -rc.ray.direction.z], hits };
+};
 window.ready = true;
 </script></body></html>

@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.4 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.5 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -107,6 +107,10 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   `opts.pool` drawing 0.4.1's real-light pool instead; `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
   lacks, the preview build fails: add it to `Stubs.cs` with Unity's meaning (e.g. `Mathf.SmoothStep` interpolates). Add a shot to
   `art/preview/shots.py` for whatever changed, look at it, and send the owner pictures. Run with `TMPDIR` set to the scratchpad.
+- **Holes:** `HOLES=1 art/preview/run.sh <outdir>` also drives the camera through every road at car-eye height, looking four ways
+  against a magenta sky with no fog, and counts the views underground where magenta shows (`holes/holes.json`, pictures of the worst;
+  `HOLES=2` for every second point). Run it after any change to the rock, passages, floors or junctions: it must report 0.
+  `window.probe()` in `view.html` names what the rays round a hole hit.
 - **In game** only the owner can test. Say what to look at and which log lines (`Debug.VerboseLog`) tell the outcomes apart.
 
 ## Working with the owner
@@ -118,6 +122,14 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.5** (owner, in game on 0.4.4: "still have giant gaps in the wall dude"): a hole scan in the preview (`holes.js`, see Checking
+  changes) found 75 views underground with holes at every 6th point. Causes: (1) every side passage's end face, a fan from its rim
+  to a point in the rock, never closed along the floor: a triangle from the floor to the face's middle was open in all of them (the
+  owner's screenshot); now closed. (2) Slivers under the passages' ribs where the floor slopes: their feet now stand 2.5 into the
+  floor (`Sink`). (3) At the forks and joins, the sliver between two tunnels parting: `JunctionFloors` lays a floor 0.3 under both,
+  bridging the centre lines and out past each tunnel's walls. After: 0 at every 6th point but 2 views of 2 to 11 pixels at the seam
+  fork (haulage 199), a hairline. 0.4.4's floor change was not the cause. Not checked: in game.
 
 - **0.4.4** (owner's first look in game at the painted light: "Lights look good but there's way too many of them"; the niche
   dressing "looks pretty bad but I like the idea": back walls not meeting the floor, so you can see through the map, improper scale,

@@ -29,6 +29,7 @@ namespace EurekaMine
 			{
 				Tunnel(r, b);
 			}
+			JunctionFloors(b);
 			Rails(Route.Main, b);
 			foreach (Road r in Route.All)
 			{
@@ -37,6 +38,67 @@ namespace EurekaMine
 			Portal(b);
 			StartLine(b);
 			Props.Build(b);
+		}
+
+		/// <summary>
+		/// Where a branch leaves or rejoins the lap the two tunnels run side by side, their walls left out inside each other's width, and
+		/// neither floor covers the sliver between them as they part: it showed through the map at floor level (found by the preview's
+		/// hole scan, 0.4.4 and before). A floor laid a little under both, bridging the two centre lines, closes it; it is seen only
+		/// through such gaps.
+		/// </summary>
+		private static void JunctionFloors(Dictionary<string, Batch> b)
+		{
+			Batch under = Get(b, "junction floor", Tex.MineFloor, new Color(0.7f, 0.68f, 0.66f));
+			under.Shadows = false;
+			Road m = Route.Main;
+			foreach (Road r in Route.All)
+			{
+				if (r == m)
+				{
+					continue;
+				}
+				for (int i = 0; i < r.Count - 1; i++)
+				{
+					int j = Nearest(m, r.At(i)), j1 = Nearest(m, r.At(i + 1));
+					Vector3 a = r.At(i), c = r.At(i + 1), ma = m.At(j), mc = m.At(j1);
+					float apart = Mathf.Sqrt((a.x - ma.x) * (a.x - ma.x) + (a.z - ma.z) * (a.z - ma.z));
+					if (apart > r.HalfAt(i) + m.HalfAt(j) + 12f || Mathf.Abs(a.y - ma.y) > 8f || Mathf.Abs(j1 - j) > 3)
+					{
+						continue;
+					}
+					const float drop = 0.3f;
+					a.y -= drop;
+					c.y -= drop;
+					ma.y -= drop;
+					mc.y -= drop;
+					under.QuadBoth(a, c, mc, ma, 12f);
+					// and each tunnel's own floor, out past its walls on both sides
+					foreach (Road q in new[] { r, m })
+					{
+						int k = q == r ? i : j;
+						Vector3 p0 = q.At(k), p1 = q.At(k + 1), s0 = q.Right(k) * (q.HalfAt(k) + 10f), s1 = q.Right(k + 1) * (q.HalfAt(k + 1) + 10f);
+						p0.y -= drop;
+						p1.y -= drop;
+						under.QuadBoth(p0 - s0, p1 - s1, p1 + s1, p0 + s0, 12f);
+					}
+				}
+			}
+		}
+
+		private static int Nearest(Road r, Vector3 p)
+		{
+			int best = 0;
+			float bd = float.MaxValue;
+			for (int k = 0; k < r.Count; k++)
+			{
+				float d = (r.P[k] - p).sqrMagnitude;
+				if (d < bd)
+				{
+					bd = d;
+					best = k;
+				}
+			}
+			return best;
 		}
 
 		/// <summary>The start and finish at the pit bottom: a chequered line across the floor and a board under the roof.</summary>
@@ -690,6 +752,9 @@ namespace EurekaMine
 		/// A side passage: a short bore of the same rough rock running off from the rib's opening (floor to PassageHigh) and ending in a
 		/// rough face, with a flat floor. Drawn only: the guard runs straight across the opening, so no car can drive in.
 		/// </summary>
+		/// <summary>How far a side passage's ribs reach down into its floor.</summary>
+		private const float Sink = 2.5f;
+
 		private static void BuildNiche(Niche nc, Dictionary<string, Batch> b)
 		{
 			Road r = nc.Road;
@@ -747,6 +812,10 @@ namespace EurekaMine
 					{
 						height = Mathf.Min(height, high);   // the mouth is the rib's opening: flat-topped at PassageHigh
 					}
+					if (k == 0 || k == across - 1)
+					{
+						height = -Sink;   // the ribs' feet stand in the floor, not on it, so no sliver opens under them where the floor slopes
+					}
 					Vector3 at = centre + side * lateral + Vector3.up * height;
 					// at the mouth the passage meets the rib's opening exactly; deeper in it is as rough as the bore
 					float back = s == 0 ? 0f : Back(at, old ? 1.35f : 1f) * (s == 1 ? 0.6f : 1f);
@@ -768,6 +837,9 @@ namespace EurekaMine
 			{
 				rock.Triangle(ids[steps][k], ids[steps][k + 1], tip);
 			}
+			// and along the floor, from the right rib's foot back to the left's: without it the face had a triangular hole from the floor
+			// to its middle in every passage, which showed through the map (0.4.4 and before)
+			rock.Triangle(ids[steps][across - 1], ids[steps][0], tip);
 			// the floor runs on under the rock all round (the rough rock stands back from the passage's line by up to several units, and
 			// 0.4.3's floor, cut to the opening, left gaps at its foot to see through), from a little inside the road, and slopes along the
 			// opening with the road (a flat floor at the lower corner left a step and a crack at the higher one); a hair under the road's
