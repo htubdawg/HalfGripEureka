@@ -259,8 +259,8 @@ namespace EurekaMine
 			normal = new Vector2(Mathf.Cos(phi) / h, Mathf.Sin(phi) / Mathf.Max(1f, rise)).normalized;
 		}
 
-		/// <summary>The road's frame at a fractional point t (between points): where it is, its right, its half width and roof.</summary>
-		private static void Frame(Road r, float t, out Vector3 at, out Vector3 right, out float half, out float ceil)
+		/// <summary>The road's frame at a fractional point t (between points): where it is, its right, its half width, roof and the floor's lean.</summary>
+		private static void Frame(Road r, float t, out Vector3 at, out Vector3 right, out float half, out float ceil, out float bank)
 		{
 			int i = Mathf.FloorToInt(t);
 			float f = t - i;
@@ -268,14 +268,16 @@ namespace EurekaMine
 			right = Vector3.Lerp(r.Right(i), r.Right(i + 1), f).normalized;
 			half = Mathf.Lerp(r.HalfAt(i), r.HalfAt(i + 1), f);
 			ceil = Mathf.Lerp(r.CeilAt(i), r.CeilAt(i + 1), f);
+			bank = Mathf.Lerp(r.BankAt(i), r.BankAt(i + 1), f);
 		}
 
 		/// <summary>The rock's point k across the section at the fractional point t of a road.</summary>
 		internal static Vector3 Rock(Road r, float t, int k)
 		{
-			Frame(r, t, out Vector3 p, out Vector3 right, out float h, out float ceil);
+			Frame(r, t, out Vector3 p, out Vector3 right, out float h, out float ceil, out float bank);
 			Shape(h, ceil, k, out float lateral, out float height, out Vector2 n);
-			Vector3 at = p + right * lateral + Vector3.up * height;
+			// the bore leans with the banked floor: sheared, ribs upright, every row at its height over the floor beneath it
+			Vector3 at = p + right * lateral + Vector3.up * (height + lateral * bank);
 			bool arch = k >= RibRows.Length && k < SectionCount - RibRows.Length;
 			float back = Back(at, r == Route.Seam ? 1.35f : 1f);
 			if (arch)
@@ -456,13 +458,25 @@ namespace EurekaMine
 				// the floor, unless another road's floor is already there (a branch where it still runs on the lap's floor)
 				if (r == Route.Main || !(OnOtherFloor(r, aL) && OnOtherFloor(r, aR) && OnOtherFloor(r, cL) && OnOtherFloor(r, cR)))
 				{
-					Vector3 lift = surface ? Vector3.up * 0.06f : Vector3.zero;
-					(surface ? yard : floor).Quad(aL + lift, cL + lift, cR + lift, aR + lift, 12f);
+					if (surface)
+					{
+						Vector3 lift = Vector3.up * 0.06f;
+						yard.Quad(aL + lift, cL + lift, cR + lift, aR + lift, 12f);
+					}
+					else
+					{
+						FloorPanel(r, i, floor);
+					}
 				}
 				if (surface)
 				{
 					continue;
 				}
+				// the corners on the banked floor, for what is built against the floor's edges below
+				aL = r.Lift(i, aL);
+				aR = r.Lift(i, aR);
+				cL = r.Lift(i + 1, cL);
+				cR = r.Lift(i + 1, cR);
 
 				Vector3 up = Vector3.up;
 				bool leftOpen = Route.InsideOther(r, (aL + cL) * 0.5f + up * 2f, 1.5f);
@@ -474,13 +488,16 @@ namespace EurekaMine
 				Batch skirt = Get(b, key + " floor edge", r.Ground == Surface.Coal ? Tex.Coal : old ? Tex.Culm : Tex.MineFloor, Color.white);
 				skirt.Shadows = false;
 				Vector3 sink = up * -0.04f;
+				// it starts a unit in under the floor's edge (the floor is a spline through the points, a hair either side of these
+				// straight edges) and runs out level from it
+				Vector3 inA = ra + up * r.BankAt(i), inC = rc + up * r.BankAt(i + 1);
 				if (!leftOpen && nl == null)
 				{
-					skirt.Quad(aL - ra * 12f + sink, cL - rc * 12f + sink, cL + sink, aL + sink, 12f);
+					skirt.Quad(aL - ra * 12f + sink, cL - rc * 12f + sink, cL + inC + sink, aL + inA + sink, 12f);
 				}
 				if (!rightOpen && nr == null)
 				{
-					skirt.Quad(aR + sink, cR + sink, cR + rc * 12f + sink, aR + ra * 12f + sink, 12f);
+					skirt.Quad(aR - inA + sink, cR - inC + sink, cR + rc * 12f + sink, aR + ra * 12f + sink, 12f);
 				}
 
 				// the rock: Sub columns per step, each a section of the rough bore, faces flat-shaded so it breaks like broken rock
@@ -535,7 +552,7 @@ namespace EurekaMine
 					Shape(ha, r.CeilAt(i), k + 1, out float la1, out float hy1, out Vector2 unusedB);
 					Shape(hc, r.CeilAt(i + 1), k, out float lc0, out float hc0, out Vector2 unusedC);
 					Shape(hc, r.CeilAt(i + 1), k + 1, out float lc1, out float hc1, out Vector2 unusedD);
-					guard.Quad(a + ra * la0 + up * hy0, a + ra * la1 + up * hy1, c + rc * lc1 + up * hc1, c + rc * lc0 + up * hc0, 10f);
+					guard.Quad(r.Edge(i, la0, hy0), r.Edge(i, la1, hy1), r.Edge(i + 1, lc1, hc1), r.Edge(i + 1, lc0, hc0), 10f);
 				}
 				if (niches.TryGetValue(i, out Niche start))
 				{
@@ -553,7 +570,7 @@ namespace EurekaMine
 					{
 						float lean = ((i * 7) % 5 - 2) * 1.2f;
 						Quaternion turn = Quaternion.LookRotation(r.Forward(i), Vector3.up) * Quaternion.Euler(0f, (i % 3 - 1) * 8f, side * lean);
-						Vector3 foot = a + ra * side * (ha + 0.95f);
+						Vector3 foot = r.Edge(i, side * (ha + 0.95f), 0f);
 						timber.Cylinder(foot + Vector3.down * 0.5f, foot + turn * Vector3.up * (WallTop + 1.5f), 0.85f, 7, 4f, true);
 					}
 				}
@@ -585,7 +602,7 @@ namespace EurekaMine
 					float len = 3f + 5f * Hash(i, 6, 0, 34), wid = 1.5f + 3f * Hash(i, 7, 0, 35);
 					// an irregular blob: a fan round its middle, each edge point at its own distance
 					Vector3 f = r.Forward(i);
-					Vector3 mid = a + ra * off + f * (2f + len * 0.5f) + up * 0.05f;
+					Vector3 mid = r.Lift(i, a + ra * off + f * (2f + len * 0.5f)) + up * 0.05f;
 					int centre = wet.Vertex(mid, Vector2.zero);
 					int first = -1, prev = -1;
 					for (int k = 0; k < 9; k++)
@@ -593,6 +610,7 @@ namespace EurekaMine
 						float ang = k * Mathf.PI * 2f / 9f;
 						float rad = 0.6f + 0.5f * Hash(i, k, 8, 36);
 						Vector3 e = mid + f * (Mathf.Cos(ang) * len * 0.5f * rad) + ra * (Mathf.Sin(ang) * wid * rad);
+						e.y += Mathf.Sin(ang) * wid * rad * r.BankAt(i);
 						int id = wet.Vertex(e, Vector2.zero);
 						if (prev >= 0)
 						{
@@ -605,6 +623,40 @@ namespace EurekaMine
 						prev = id;
 					}
 					wet.Triangle(centre, prev, first);
+				}
+			}
+		}
+
+		/// <summary>Floor cells per 8-unit step along the road and across it: fine enough that the floor's turns and climbs read as smooth to a car.</summary>
+		private const int FloorAlong = 4, FloorAcross = 8;
+
+		/// <summary>
+		/// The floor from point i to i + 1: a grid of shared vertices on the road's spline (<see cref="Road.Floor"/>). It was one flat quad
+		/// per step; on a bend that climbs (the spiral) the inside edge climbs steeper than the outside, so each quad was twisted and folded
+		/// along its diagonal, 2 degrees each way every 4 units across the whole width (the owner, after 0.4.10: "very bumpy, made out of a
+		/// bunch of steps"). Now about 0.4 degrees between neighbouring cells at worst.
+		/// </summary>
+		private static void FloorPanel(Road r, int i, Batch floor)
+		{
+			float ha = r.HalfAt(i), hc = r.HalfAt(i + 1);
+			float sa = r.S[r.Wrap(i)], step = Vector3.Distance(r.At(i), r.At(i + 1));
+			int[,] id = new int[FloorAlong + 1, FloorAcross + 1];
+			for (int a = 0; a <= FloorAlong; a++)
+			{
+				float f = (float)a / FloorAlong;
+				float half = Mathf.Lerp(ha, hc, f);
+				for (int c = 0; c <= FloorAcross; c++)
+				{
+					float lateral = -half + 2f * half * c / FloorAcross;
+					id[a, c] = floor.Vertex(r.Floor(i + f, lateral), new Vector2((sa + step * f) / 12f, lateral / 12f));
+				}
+			}
+			for (int a = 0; a < FloorAlong; a++)
+			{
+				for (int c = 0; c < FloorAcross; c++)
+				{
+					// left to right across, as the old quad (aL, cL, cR, aR): facing up
+					floor.QuadIndex(id[a, c], id[a + 1, c], id[a + 1, c + 1], id[a, c + 1]);
 				}
 			}
 		}
@@ -840,7 +892,7 @@ namespace EurekaMine
 			Road r = nc.Road;
 			bool old = r == Route.Seam;
 			int a = nc.I, c = nc.I + nc.Span;
-			Vector3 pa = r.At(a) + r.Right(a) * nc.Side * r.HalfAt(a), pc = r.At(c) + r.Right(c) * nc.Side * r.HalfAt(c);
+			Vector3 pa = r.Edge(a, nc.Side * r.HalfAt(a), 0f), pc = r.Edge(c, nc.Side * r.HalfAt(c), 0f);
 			Vector3 o = (r.Right(a) + r.Right(c)).normalized * nc.Side;
 			nc.Mouth = (pa + pc) * 0.5f;
 			nc.Out = o;
@@ -1012,7 +1064,9 @@ namespace EurekaMine
 			// 0.4.3's floor, cut to the opening, left gaps at its foot to see through), from a little inside the road, and slopes along the
 			// opening with the road (a flat floor at the lower corner left a step and a crack at the higher one); a hair under the road's
 			// floor, so where they overlap the road's shows
-			const float ext = 7f, lip = 1.5f, under = 0.12f;
+			// on the high side of a banked floor the road's floor falls away inward, so the lip goes that much deeper to stay under it
+			const float ext = 7f, lip = 1.5f;
+			float under = 0.12f + lip * Mathf.Max(0f, nc.Side * Mathf.Max(r.BankAt(a), r.BankAt(c)));
 			float slope = (pc.y - pa.y) / Mathf.Max(nc.Width, 0.1f);
 			Vector3 fa = pa - nc.Along * ext - o * lip, fc = pc + nc.Along * ext - o * lip;
 			fa.y = pa.y - under - slope * ext;
@@ -1066,13 +1120,13 @@ namespace EurekaMine
 				}
 				foreach (float side in new[] { -3.2f, 3.2f })
 				{
-					Vector3 p0 = a + ra * side + Vector3.up * 0.25f, p1 = c + rc * side + Vector3.up * 0.25f;
-					Vector3 w0 = ra * 0.3f, w1 = rc * 0.3f;
+					Vector3 p0 = r.Edge(i, side, 0.25f), p1 = r.Edge(i + 1, side, 0.25f);
+					Vector3 w0 = ra * 0.3f + Vector3.up * (0.3f * r.BankAt(i)), w1 = rc * 0.3f + Vector3.up * (0.3f * r.BankAt(i + 1));
 					steel.Quad(p0 - w0, p1 - w1, p1 + w1, p0 + w0, 4f);
 				}
 				if (i % 2 == 0)
 				{
-					sleepers.Box(a + Vector3.up * 0.08f, new Vector3(9.5f, 0.2f, 1.2f), Quaternion.LookRotation(r.Forward(i), Vector3.up), 4f);
+					sleepers.Box(a + r.FloorUp(i) * 0.08f, new Vector3(9.5f, 0.2f, 1.2f), Quaternion.LookRotation(r.Forward(i), r.FloorUp(i)), 4f);
 				}
 			}
 		}
@@ -1097,7 +1151,7 @@ namespace EurekaMine
 			{
 				foreach (float side in new[] { -1f, 1f })
 				{
-					Vector3 edge = r.At(i) + r.Right(i) * side * r.HalfAt(i);
+					Vector3 edge = r.Edge(i, side * r.HalfAt(i), 0f);
 					if (Route.InsideOther(r, edge + Vector3.up * 2f, 0f))
 					{
 						continue;
@@ -1115,7 +1169,9 @@ namespace EurekaMine
 						Vector3 f = r.Forward(i), right = r.Right(i);
 						float w = 2f + (float)rng.NextDouble() * 4f, len = 5f + (float)rng.NextDouble() * 7f;
 						Vector3 a = edge + f * (float)(rng.NextDouble() * 4.0), c = a + f * len;
-						Vector3 aIn = a - right * side * w, cIn = c - right * side * (w * 0.5f);
+						// inward from the rib, down (or up) the banked floor with it
+						float fall = side * r.BankAt(i);
+						Vector3 aIn = a - right * side * w - Vector3.up * (fall * w), cIn = c - right * side * (w * 0.5f) - Vector3.up * (fall * w * 0.5f);
 						Vector3 lift = Vector3.up * 0.12f, hump = Vector3.up * 0.35f;
 						if (side < 0f)
 						{

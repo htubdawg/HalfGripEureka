@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.10 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.11 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -22,7 +22,7 @@ The race starts in the pithead yard, runs down a slope into the mine, and every 
 | Path | Role |
 |---|---|
 | `art/route.py` | Curve maths: anchor poses joined by Dubins (curve-straight-curve) paths of a set radius, or a helix; sampling every 8 units; height smoothing |
-| `art/layout.py` | **The layout** (anchors of the lap, the two alternate routes and the run in), the checks (grades, 34 units of vertical clearance wherever roads overlap in plan), the drawings, and the bake into `EurekaMine/src/RouteData.cs` |
+| `art/layout.py` | **The layout** (anchors of the lap, the two alternate routes and the run in), the bank (each point's lean into its bend, flat at forks, joins, the pit bottom, the plane and the chute doors), the checks (grades, edge grades of the banked floor, 34 units of vertical clearance wherever roads overlap in plan), the drawings, and the bake into `EurekaMine/src/RouteData.cs` |
 | `art/make_icons.py` | `icon.png` and `sprites/eureka_icon.png` (12x12, like the game's map icons) |
 | `art/preview/` | Pictures of the built mine without the game (see Checking changes) |
 | `docs/plan.png` | The plan drawing the README shows (copy of `art/layout.py`'s output) |
@@ -70,6 +70,9 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
   adding anything (the owner's call after 0.3.0: no feature creep, such as the door lamps 0.3.0 added and 0.4.0 removed).
 
 - **Change the layout in `art/layout.py`, never `RouteData.cs`.** Run it and read its checks: `clearance problems ... 0`, grades.
+- **Banked floors (0.4.11):** the whole bore is sheared with the floor's lean (`Road.Bank`, ribs upright). Anything placed against a road
+  at a lateral offset must go through `Road.Edge(i, lateral, height)` or `Road.Lift(i, p)`, or it floats or sinks on a bend. The drivable
+  floor is `Road.Floor(t, lateral)` (a spline) in a grid of `Mine.FloorAlong` x `FloorAcross` cells per step, never one quad per step.
 - **Bump `version` in `mod.json` with every change that ships**, and the version line in `README.md`. Set `gameVersion` and `tools`
   to the current game and HalfGripTools at the same time.
 - C# 10 and netstandard2.1 only. Tabs, `///` summaries that say why.
@@ -132,6 +135,20 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.11** (owner, in game on 0.4.10: "Spiral road is very bumpy, seems like you made it out of a bunch of steps... could do with some
+  smoothing on angled surfaces and adding banks to turns"). Cause: the floor was one flat quad per 8-unit step; on a climbing bend the
+  inside edge climbs steeper than the outside (on the spiral 11% against 7.7%), so every quad was twisted and folded along its
+  diagonal, its two triangles 2 degrees apart, alternating every 4 units across the full width (the heights themselves were smooth).
+  Now the floor is a Catmull-Rom spline through the points (height and lean too), 4 x 8 cells per step with shared vertices: about
+  0.4 degrees between neighbours at worst (`Road.Floor`, `Mine.FloorPanel`). Banks: `layout.py` bakes a lean per point,
+  `BANK_GAIN / radius` degrees (800; the spiral 7, the second switchback and the dip 10, at most `BANK_MAX` 10), curvature averaged
+  over 64 units, eased to flat over 64 at forks and joins (a branch on the lap's floor), the pit bottom chamber, the plane (runaway
+  cars), the chute's doors and the surface; so the first switchback (on the chute's fork) stays flat. Steepest along a banked edge
+  15.9% (the dip's S-bend; the road's own steepest 10.8%). The bore, guard, posts, rails, puddles, rubble, passages, cable, chevrons,
+  signs and coal chutes follow it. Checked: layout clearance 0; compiles with no warnings; preview before/after of the spiral, hairpin
+  and dip; rock in the road unchanged (462: the chamber's ends and the dust bags); hole scan (see below). Not checked: in game (how it
+  drives, the bots on banked bends).
 
 - **0.4.10** (owner, in game on 0.4.9: "Track is looking good but the headlights seem to not do a whole lot"; check nothing interferes,
   else improve them). Interference: none found. The game's headlight is one spot per car (`Headlights/Spot Light`, intensity 500, range

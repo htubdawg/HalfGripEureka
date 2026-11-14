@@ -317,8 +317,8 @@ namespace EurekaMine
 			{
 				int i = a + (b - a) * (k + 1) / 4;
 				float side = k % 2 == 0 ? 1f : -1f;
-				Vector3 wall = r.P[i] + r.Right(i) * side * (r.Half - 0.5f) + Vector3.up * (Mine.WallTop - 1f);
-				Vector3 mouth = r.P[i] + r.Right(i) * side * (r.Half - 7f) + Vector3.up * (Mine.WallTop - 4f);
+				Vector3 wall = r.Edge(i, side * (r.Half - 0.5f), Mine.WallTop - 1f);
+				Vector3 mouth = r.Edge(i, side * (r.Half - 7f), Mine.WallTop - 4f);
 				Quaternion turn = Quaternion.LookRotation(mouth - wall, Vector3.up);
 				steel.Box((wall + mouth) * 0.5f, new Vector3(5f, 1.2f, (mouth - wall).magnitude + 2f), turn, 3f);
 				steel.Box((wall + mouth) * 0.5f + turn * new Vector3(2.5f, 1.2f, 0f), new Vector3(0.6f, 2.6f, (mouth - wall).magnitude + 2f), turn, 3f);

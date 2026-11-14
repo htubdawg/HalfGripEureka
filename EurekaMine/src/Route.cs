@@ -17,9 +17,12 @@ namespace EurekaMine
 		internal readonly float[] S;
 		/// <summary>Half the road's width and the height of its roof at each point: wider and higher in the chambers.</summary>
 		internal readonly float[] HalfW, Ceil;
+		/// <summary>The floor's lean at each point (from <c>art/layout.py</c>): the tangent of its angle, positive with the right side up.</summary>
+		internal readonly float[] Bank;
 
-		internal Road(string name, float[] x, float[] y, float[] z, float width, bool closed, Surface ground, int fork, int join)
+		internal Road(string name, float[] x, float[] y, float[] z, float[] bank, float width, bool closed, Surface ground, int fork, int join)
 		{
+			Bank = bank;
 			Name = name;
 			Width = width;
 			Closed = closed;
@@ -87,6 +90,65 @@ namespace EurekaMine
 				HalfW[i] = Mathf.Max(HalfW[i], Mathf.Lerp(Half, half, f));
 				Ceil[i] = Mathf.Max(Ceil[i], Mathf.Lerp(Mine.Height, ceil, f));
 			}
+		}
+
+		internal float BankAt(int i)
+		{
+			return Bank[Wrap(i)];
+		}
+
+		/// <summary>
+		/// A point built against point i (on the floor, a wall, the roof) lifted by the floor's lean there: the whole bore is sheared
+		/// with the banked floor, its ribs kept upright, so everything at a given height over the floor stays at that height.
+		/// </summary>
+		internal Vector3 Lift(int i, Vector3 p)
+		{
+			Vector3 a = At(i);
+			return p + Vector3.up * (Vector3.Dot(p - a, Right(i)) * BankAt(i));
+		}
+
+		/// <summary>The point lateral units right of point i (left if negative) at height over the banked floor.</summary>
+		internal Vector3 Edge(int i, float lateral, float height)
+		{
+			return At(i) + Right(i) * lateral + Vector3.up * (height + lateral * BankAt(i));
+		}
+
+		/// <summary>The floor's upward normal at point i.</summary>
+		internal Vector3 FloorUp(int i)
+		{
+			return (Vector3.up - Right(i) * BankAt(i)).normalized;
+		}
+
+		/// <summary>
+		/// The floor at a fractional point t, lateral units across: a Catmull-Rom spline through the points (height and lean included)
+		/// with its right taken from the spline's own direction, so the floor turns and climbs smoothly between points rather than in
+		/// 8-unit flat panels (on the spiral each panel was twisted, its two triangles creased 2 degrees: a washboard, owner after 0.4.10).
+		/// </summary>
+		internal Vector3 Floor(float t, float lateral)
+		{
+			int i = Mathf.FloorToInt(t);
+			float f = t - i;
+			Vector3 p0 = At(i - 1), p1 = At(i), p2 = At(i + 1), p3 = At(i + 2);
+			if (!Closed)
+			{
+				// past an open road's ends, carry on straight so the spline does not curl
+				if (i - 1 < 0)
+				{
+					p0 = p1 * 2f - p2;
+				}
+				if (i + 2 > Count - 1)
+				{
+					p3 = p2 * 2f - p1;
+				}
+			}
+			float f2 = f * f, f3 = f2 * f;
+			Vector3 p = 0.5f * (2f * p1 + (p2 - p0) * f + (2f * p0 - 5f * p1 + 4f * p2 - p3) * f2 + (3f * p1 - p0 - 3f * p2 + p3) * f3);
+			Vector3 d = 0.5f * ((p2 - p0) + 2f * (2f * p0 - 5f * p1 + 4f * p2 - p3) * f + 3f * (3f * p1 - p0 - 3f * p2 + p3) * f2);
+			d.y = 0f;
+			Vector3 right = d.sqrMagnitude > 1e-8f ? Vector3.Cross(Vector3.up, d.normalized) : Right(i);
+			float b0 = BankAt(i - 1), b1 = BankAt(i), b2 = BankAt(i + 1), b3 = BankAt(i + 2);
+			float bank = 0.5f * (2f * b1 + (b2 - b0) * f + (2f * b0 - 5f * b1 + 4f * b2 - b3) * f2 + (3f * b1 - b0 - 3f * b2 + b3) * f3);
+			return p + right * lateral + Vector3.up * (lateral * bank);
 		}
 
 		internal Vector3 At(int i)
@@ -157,10 +219,10 @@ namespace EurekaMine
 			{
 				return;
 			}
-			Main = new Road("haulage", RouteData.MainX, RouteData.MainY, RouteData.MainZ, RouteData.MainWidth, true, Surface.Haulage, -1, -1);
-			Seam = new Road("upper seam", RouteData.SeamX, RouteData.SeamY, RouteData.SeamZ, RouteData.SeamWidth, false, Surface.Rough, RouteData.SeamFork, RouteData.SeamJoin);
-			Chute = new Road("coal chute", RouteData.ChuteX, RouteData.ChuteY, RouteData.ChuteZ, RouteData.ChuteWidth, false, Surface.Coal, RouteData.ChuteFork, RouteData.ChuteJoin);
-			Runin = new Road("slope", RouteData.RuninX, RouteData.RuninY, RouteData.RuninZ, RouteData.RuninWidth, false, Surface.Haulage, -1, RouteData.RuninJoin);
+			Main = new Road("haulage", RouteData.MainX, RouteData.MainY, RouteData.MainZ, RouteData.MainBank, RouteData.MainWidth, true, Surface.Haulage, -1, -1);
+			Seam = new Road("upper seam", RouteData.SeamX, RouteData.SeamY, RouteData.SeamZ, RouteData.SeamBank, RouteData.SeamWidth, false, Surface.Rough, RouteData.SeamFork, RouteData.SeamJoin);
+			Chute = new Road("coal chute", RouteData.ChuteX, RouteData.ChuteY, RouteData.ChuteZ, RouteData.ChuteBank, RouteData.ChuteWidth, false, Surface.Coal, RouteData.ChuteFork, RouteData.ChuteJoin);
+			Runin = new Road("slope", RouteData.RuninX, RouteData.RuninY, RouteData.RuninZ, RouteData.RuninBank, RouteData.RuninWidth, false, Surface.Haulage, -1, RouteData.RuninJoin);
 			All.Clear();
 			All.Add(Main);
 			All.Add(Seam);

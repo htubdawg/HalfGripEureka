@@ -77,6 +77,17 @@ for tag, road, i in [("haulage", "haulage", 40), ("lower", "haulage", 280), ("up
     shots.append(dict(name=f"40_head_{tag}_b_stock", **chase(road, i, lamp=STOCK)))
     shots.append(dict(name=f"40_head_{tag}_c_mine", **chase(road, i, lamp=MINE)))
 
+# the banked, smoothed floor (0.4.11): the spiral, the second switchback and the dip's S-bend behind a car with the mine's headlight, a low
+# look along the spiral's floor, and the spiral with its rock hidden, seen from the helix's axis (its floors lean in toward it)
+cut = ["rock", "roof", "rubble", "posts", "spill", "wire", "bulbs", "cable", "chevron", "hanger", "passage", "puddles", "steel", "sleepers", "rails", "glow"]
+for tag, road, i in [("spiral", "haulage", 350), ("hairpin", "haulage", 693), ("dip", "haulage", 236)]:
+    shots.append(dict(name=f"50_bank_{tag}", **chase(road, i, lamp=MINE)))
+shots.append(dict(name="50_bank_spiral_low", **inside("haulage", 352, 4, 4), opts=dark))
+shots.append(dict(name="51_spiral_cut", eye=[-275, 30, -600], at=[R["haulage"][350][0], R["haulage"][350][1], R["haulage"][350][2]],
+                  opts=dict(hide=surf + cut, bg=0x202020, fov=70)))
+shots.append(dict(name="51_hairpin_cut", eye=[R["haulage"][693][0] + 60, R["haulage"][693][1] + 60, R["haulage"][693][2] + 90],
+                  at=[R["haulage"][693][0], R["haulage"][693][1], R["haulage"][693][2]], opts=dict(hide=surf + cut, bg=0x202020, fov=60)))
+
 # HEADTRY="i,outer,inner,pitch;...": other headlights to compare (41_try_*)
 for k, spec in enumerate(filter(None, os.environ.get("HEADTRY", "").split(";"))):
     i, outer, inner, pitch = (float(x) for x in spec.split(","))

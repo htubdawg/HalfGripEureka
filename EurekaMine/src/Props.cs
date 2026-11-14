@@ -349,7 +349,7 @@ namespace EurekaMine
 				{
 					// the cable hangs a little behind the guard line from a steel hanger at every point, each hanger bolted into the rough
 					// rib behind it (0.4.7's hooks stood in the air, up to ten units clear of the rock), and sags a little between them
-					Vector3 h0 = a + ra * (ha + 0.6f) + Vector3.up * (ta - 2.5f), h1 = c + rc * (hc + 0.6f) + Vector3.up * (tc - 2.5f);
+					Vector3 h0 = r.Edge(i, ha + 0.6f, ta - 2.5f), h1 = r.Edge(i + 1, hc + 0.6f, tc - 2.5f);
 					Vector3 mid = (h0 + h1) * 0.5f + Vector3.down * 0.45f;
 					cable.Cylinder(h0, mid, 0.3f, 5, 2f, false);
 					cable.Cylinder(mid, h1, 0.3f, 5, 2f, false);
@@ -357,7 +357,7 @@ namespace EurekaMine
 				}
 				if (trolley && !Route.InsideOther(r, a, -2f))
 				{
-					Vector3 w0 = a + ra * (ha * 0.35f) + Vector3.up * (r.CeilAt(i) - 3.2f), w1 = c + rc * (hc * 0.35f) + Vector3.up * (r.CeilAt(i + 1) - 3.2f);
+					Vector3 w0 = r.Edge(i, ha * 0.35f, r.CeilAt(i) - 3.2f), w1 = r.Edge(i + 1, hc * 0.35f, r.CeilAt(i + 1) - 3.2f);
 					wire.Cylinder(w0, w1, 0.12f, 4, 2f, false);
 					if (i % 3 == 0)
 					{
@@ -443,7 +443,7 @@ namespace EurekaMine
 					}
 					Vector3 right = r.Right(i);
 					Vector3 normal = -right * outer;
-					Vector3 at = r.At(i) + right * outer * (r.HalfAt(i) + 0.35f) + Vector3.up * 6f;
+					Vector3 at = r.Edge(i, outer * (r.HalfAt(i) + 0.35f), 6f);
 					Board(board, at, normal, r.Forward(i), 6f, 4.5f);
 					// the board (under the power cable) on a steel backing and two brackets back to the rock behind it (rib rows 3 and 4)
 					Quaternion q = Quaternion.LookRotation(-normal, Vector3.up);
@@ -499,7 +499,7 @@ namespace EurekaMine
 		{
 			Vector3 f = r.Forward(i);
 			float ta = r.CeilAt(i) - (Mine.Height - Mine.WallTop);
-			Vector3 c = r.At(i) + r.Right(i) * (offset * r.HalfAt(i)) + Vector3.up * (ta - 1.6f);
+			Vector3 c = r.Edge(i, offset * r.HalfAt(i), ta - 1.6f);
 			Placard(c, -f, w, 3.2f, text, ink, Tex.Enamel, paint);
 			DarkSteel.Box(c + Vector3.up * 2.6f + r.Right(i) * (w * 0.4f), new Vector3(0.2f, 2f, 0.2f), Quaternion.identity, 1f);
 			DarkSteel.Box(c + Vector3.up * 2.6f - r.Right(i) * (w * 0.4f), new Vector3(0.2f, 2f, 0.2f), Quaternion.identity, 1f);
@@ -513,7 +513,7 @@ namespace EurekaMine
 				return;
 			}
 			Vector3 normal = -r.Right(i) * side;
-			Vector3 c = r.At(i) + r.Right(i) * side * (r.HalfAt(i) - 0.25f) + Vector3.up * height;
+			Vector3 c = r.Edge(i, side * (r.HalfAt(i) - 0.25f), height);
 			Placard(c, normal, w, h, text, ink, Tex.Enamel, paint);
 		}
 
