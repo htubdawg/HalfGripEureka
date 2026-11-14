@@ -12,6 +12,9 @@ internal static class Program
 	{
 		CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 		Route.Load();
+		// BULBS="gap,spread" tries other bulb spacings without editing Mine.cs
+		string bulbs = Environment.GetEnvironmentVariable("BULBS");
+		if (bulbs != null) { var bp = bulbs.Split(','); Mine.BulbGap = int.Parse(bp[0]); Mine.BulbSpread = int.Parse(bp[1]); }
 		Tex.Make();
 		var b = new Dictionary<string, Batch>();
 		var t0 = DateTime.Now;
@@ -57,6 +60,13 @@ internal static class Program
 		}
 		sb.Append("],\"lamps\":[");
 		for (int i = 0; i < Mine.Lamps.Count; i++) { if (i > 0) sb.Append(','); var p = Mine.Lamps[i]; sb.Append(p.x.ToString("0.#")).Append(',').Append(p.y.ToString("0.#")).Append(',').Append(p.z.ToString("0.#")); }
+		sb.Append("],\"niches\":[");
+		for (int i = 0; i < Mine.Niches.Count; i++)
+		{
+			var n = Mine.Niches[i]; if (i > 0) sb.Append(',');
+			sb.Append("{\"kind\":").Append(n.Kind).Append(",\"road\":\"").Append(n.Road.Name).Append("\",\"mouth\":[").Append(n.Mouth.x.ToString("0.#")).Append(',').Append(n.Mouth.y.ToString("0.#")).Append(',').Append(n.Mouth.z.ToString("0.#"))
+				.Append("],\"out\":[").Append(n.Out.x.ToString("0.###")).Append(',').Append(n.Out.y.ToString("0.###")).Append(',').Append(n.Out.z.ToString("0.###")).Append("],\"width\":").Append(n.Width.ToString("0.#")).Append(",\"depth\":").Append(n.Depth.ToString("0.#")).Append('}');
+		}
 		sb.Append("],\"textures\":{");
 		bool f3 = true;
 		foreach (var kv in textures)

@@ -42,7 +42,11 @@ const cam = new THREE.PerspectiveCamera(70, 1280/720, 0.5, 9000);
 // (height counting three times over), each fading to nothing at the distance of the nearest bulb left out
 const pool = []; for (let k = 0; k < 8; k++) { const l = new THREE.PointLight(0xffcc8c, 0, 48, 1.2); world.add(l); pool.push(l); }
 const lamps = []; for (let k = 0; k < scene.lamps.length; k += 3) lamps.push(new THREE.Vector3(scene.lamps[k], scene.lamps[k + 1] - 1.5, -scene.lamps[k + 2]));
+// opts.car = [x, y, z, dx, dz]: a grey box the size of the player's car collider (14.2 x 2.8 x 7.3) on the floor there, facing dx, dz, for scale
+const carBox = new THREE.Mesh(new THREE.BoxGeometry(7.34, 2.82, 14.2), new THREE.MeshLambertMaterial({color: 0x9a9a9a})); world.add(carBox);
 window.shot = (eye, at, opts={}) => {
+  carBox.visible = !!opts.car;
+  if (opts.car) { const [x, y, z, dx, dz] = opts.car; carBox.position.set(x, y + 1.41, -z); carBox.rotation.set(0, Math.atan2(dx, -dz), 0); }
   for (const [n, m] of Object.entries(groups)) m.visible = !(opts.hide||[]).some(h => n.includes(h)) && !(opts.pool && n.startsWith('glow'));
   world.background = new THREE.Color(opts.bg || 0x7a7c80);
   world.fog = opts.fog ? new THREE.Fog(opts.bg || 0x7a7c80, 10, opts.fog) : null;

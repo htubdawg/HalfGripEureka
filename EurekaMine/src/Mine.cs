@@ -103,6 +103,9 @@ namespace EurekaMine
 
 		internal static readonly List<Niche> Niches = new List<Niche>();
 
+		/// <summary>Points (8 units each) from one bulb to the next: at least BulbGap, plus up to BulbSpread - 1 more at random (half the gap in a chamber).</summary>
+		internal static int BulbGap = 3, BulbSpread = 4;
+
 		// ---- rough rock ---------------------------------------------------------------------------------------------------------
 
 		/// <summary>Smooth value noise in 0..1 from a world position (cells of the given size), the same wherever it is asked, so neighbouring segments meet.</summary>
@@ -479,7 +482,7 @@ namespace EurekaMine
 				if (!old && i >= nextBulb && !leftOpen && !rightOpen)
 				{
 					float hsh = Hash(i, r.Count, 1, 11);
-					nextBulb = i + (chamber ? 2 : 3 + (int)(hsh * 4f));
+					nextBulb = i + (chamber ? Mathf.Max(2, BulbGap / 2) : BulbGap + (int)(hsh * BulbSpread));
 					Vector3 crown = Crown(r, i);
 					Vector3 at = new Vector3(crown.x, Mathf.Min(crown.y, a.y + r.CeilAt(i)) - 1.4f, crown.z);
 					bulb.Box(at, new Vector3(0.6f, 0.8f, 0.6f), Quaternion.LookRotation(r.Forward(i), Vector3.up), 1f);
