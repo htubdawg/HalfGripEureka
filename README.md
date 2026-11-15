@@ -2,10 +2,11 @@
 
 # Eureka Mine for Half Grip
 
-**Version 0.5.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
+**Version 0.5.3** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
 
 A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker, in the half hour before sunrise. The race runs into the drift mouth and
-down the slope, and every lap after that is underground. It is dealt into your runs like any other map.
+down the slope, and every lap after that is underground. It is dealt into your runs like any other map, and has its own race song,
+"Last Exit".
 
 *100% AI generated code.*
 
@@ -77,4 +78,6 @@ In `BepInEx\config\halfgrip.eurekamine.cfg`, written the first time the game run
 
 - The map is built inside the Stadium scene when its race loads, as Highway and Temple of Drift are. If it fails to build, the log
   says why and the Stadium is put back.
+- The race song is `EurekaMine/music/Last Exit.ogg` (Ogg Vorbis). If it is missing or can't be read, the log says so and the map
+  plays the game's own songs.
 - Removing the mod: finish or abandon a run that has Eureka Mine on its map first, then delete the `EurekaMine` folder.

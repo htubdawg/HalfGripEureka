@@ -3,13 +3,13 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.5.0 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.5.3 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
 - A **source mod** for [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools): at game start the loader compiles
   `EurekaMine/src/*.cs` (C# 10, netstandard2.1) against the game's DLLs, BepInEx, 0Harmony and HalfGripTools. What ships is the
-  `EurekaMine/` folder (`mod.json`, `icon.png`, `src/`, `sprites/`).
+  `EurekaMine/` folder (`mod.json`, `icon.png`, `src/`, `sprites/`, `music/`).
 - Like Highway and Temple of Drift (4l3x4nd3r's [HalfGripMods](https://github.com/4l3x4nd3r0/HalfGripMods), MIT) it has no scene: it
   copies the `StadiumAsh` map entry into `RunConfig.maps` with its own track index (40), patches `MenuManager.TrackIndex` to load the
   Stadium, and on `sceneLoaded` hides the Stadium's ground, track and decoration and builds the map in code.
@@ -49,6 +49,7 @@ The race starts in the pithead yard, runs down a slope into the mine, and every 
 | `Glow.cs` | The bulbs' light painted at build time: per-vertex light (falloff, angle, open-air test against the roads and side passages) on a twin of every lit surface near a bulb, cut finer where the light changes |
 | `Underground.cs` | Darkness and headlights underground (Temple of Drift's method); the cabin lamp; the glow's material (`GlowMats`); the fallback lamp light pool |
 | `Hazards.cs` | Runaway mine cars on the plane, coal chutes, ventilation doors on the chute |
+| `Music.cs` | The race song, `music/Last Exit.ogg` (the owner's "Last Exit"), read with `UnityWebRequestMultimedia` (HalfGripTools has no audio loader) into `MapDefinition.musicTrack` |
 
 ## The lap
 
@@ -141,6 +142,22 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.5.3** (owner: "just match" Temple of Drift's level). Its `audio/temple_of_drift.wav` (HalfGripMods, played at volume 1 with no gain
+  in its `Music.cs`) is -17.6 LUFS, true peak -7.4 dBFS. The owner's original upload raised a flat 4.3 dB (one encode, not on top of
+  0.5.2's) to -17.6 LUFS, true peak -4.9 dBFS, Vorbis q8, the same 5,008,921 samples. Not checked: in game.
+
+- **0.5.2** (owner: the song is "a bit quieter than the others"). It was -21.9 LUFS integrated, true peak -9.2 dBFS; raised by a flat
+  7.9 dB (no limiting or compression) to -14.0 LUFS, true peak -1.3 dBFS, re-encoded Vorbis q8 (ffmpeg `volume=7.9dB`, libvorbis), the
+  same 5,008,921 samples so the loop is unchanged. The game's songs are not in HalfGripRefs (DLLs only), so they were not measured:
+  -14 is a usual master for game music. The game plays every race song at AudioSource volume 1 through its Music mixer group, so the
+  file's level is the only control. Not checked: in game against the game's songs.
+
+- **0.5.1** (owner: the track's song, "Last Exit"). `music/Last Exit.ogg` (Ogg Vorbis, 48 kHz stereo, 1:44) is read at mod load in the
+  background (`Music.Load`, kept compressed in memory, `DontUnloadUnusedAsset`), named "Last Exit" as the game's clips are ("Forest OST"),
+  and set as the map's `musicTrack`, which `RunState.BeginRace` picks (`PickMusic`) and `TrackManager.PlayRaceMusic` plays looped; the
+  game shows no song title anywhere (0.419 decompile). Log: `Race music loaded: "Last Exit", 104.4 s ...` or a warning (then the
+  Stadium entry's music stays). Checked: compiles with no warnings. Not checked: in game.
 
 - **0.5.0** (owner: "The interior is difficult to see" (the car's: the instruments and the shifter), and "Beautify the outside area. Grab
   the tree backdrops, cook up an early morning skybox, regular trees, and general set dressing ... restrict players to the track and focus
@@ -330,7 +347,7 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   three hazards, darkness and lamp lights. Checked: `layout.py` clearance 0 and grades (main 10.8%, seam 15.5% on a short ramp,
   chute 11.1%, run in 9.9%); compiles against 0.419 with no errors or warnings; every member named by string exists in the 0.419
   decompile; the preview pictures show the tunnels, junctions (a floor hole at the slope's merge was found and fixed) and the pithead.
-- **Not done yet:** the owner's music (OGG, to come; `MapDefinition.musicTrack`), MiniMap check, and in-game tuning (grip values,
+- **Not done yet:** MiniMap check, and in-game tuning (grip values,
   hazard timing, lamp brightness, the benchmark times).
 - **Where it stands (after 0.4.0):** the owner liked the 0.4.0 previews ("This is great") but has not loaded 0.2.0 or later in game.
   Known rough spots seen in the previews: the old-workings rooms' edges are flat-ish where they meet the rib, and the rubble heaps
