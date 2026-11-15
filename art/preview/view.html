@@ -57,6 +57,18 @@ const spot = new THREE.SpotLight(0xfff0d8, 0, 160, 0.5, 0.5, 1.2); world.add(spo
 // the diffuse and three's do, so the intensity is given times pi here (opts.amb likewise, to compare against the game's ambient)
 const carLamps = []; for (let k = 0; k < 4; k++) { const l = new THREE.SpotLight(0xffffff, 0, 150, 0.3, 0.3, 2); world.add(l); world.add(l.target); carLamps.push(l); }
 const cam = new THREE.PerspectiveCamera(70, 1280/720, 0.5, 9000);
+// opts.sky: the painted dawn sky (SkyPaint.cs) on a sphere round the camera, the game's dawn weather (MapEntry.cs) for the light and fog,
+// and the camera's reach the mod gives it on the surface (Backdrop.Reach, 3200)
+let skyDome = null;
+if (scene.sky) {
+  const S = scene.sky, raw = Uint8Array.from(atob(S.px), ch => ch.charCodeAt(0));
+  const tex = new THREE.DataTexture(raw, S.w, S.h, THREE.RGBAFormat); tex.colorSpace = THREE.SRGBColorSpace; tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  const g = new THREE.SphereGeometry(8000, 256, 128), p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = -p.getZ(i), r = Math.hypot(x, y, z);
+    uv.setXY(i, (Math.atan2(z, x) + Math.PI) / (2 * Math.PI), (Math.asin(y / r) + Math.PI / 2) / Math.PI); }
+  skyDome = new THREE.Mesh(g, new THREE.MeshBasicMaterial({map: tex, side: THREE.BackSide, fog: false, depthWrite: false}));
+  skyDome.renderOrder = -1; skyDome.visible = false; world.add(skyDome);
+}
 // the bulbs' light is painted (the glow batches); opts.pool draws 0.4.1's pool of real lights instead: the 8 bulbs nearest the camera
 // (height counting three times over), each fading to nothing at the distance of the nearest bulb left out
 const pool = []; for (let k = 0; k < 8; k++) { const l = new THREE.PointLight(0xffcc8c, 0, 48, 1.2); world.add(l); pool.push(l); }
@@ -65,6 +77,7 @@ const lamps = []; for (let k = 0; k < scene.lamps.length; k += 3) lamps.push(new
 const carBox = new THREE.Mesh(new THREE.BoxGeometry(7.34, 2.82, 14.2), new THREE.MeshLambertMaterial({color: 0x9a9a9a})); world.add(carBox);
 window.shot = (eye, at, opts={}) => {
   carBox.visible = !!opts.car;
+  sun.position.set(-0.4, 1, 0.3); sun.target.position.set(0, 0, 0); cam.far = 9000;
   if (opts.car) { const [x, y, z, dx, dz] = opts.car; carBox.position.set(x, y + 1.41, -z); carBox.rotation.set(0, Math.atan2(dx, -dz), 0); }
   for (const [n, m] of Object.entries(groups)) m.visible = !(opts.hide||[]).some(h => n.includes(h)) && !(opts.pool && n.startsWith('glow'));
   for (const [n, m] of backs) m.visible = !!opts.backs && !(opts.hide||[]).some(h => n.includes(h));
@@ -101,7 +114,20 @@ window.shot = (eye, at, opts={}) => {
     if (opts.dark) { h.color.setRGB(...D.sky, THREE.SRGBColorSpace); h.groundColor.setRGB(...D.ground, THREE.SRGBColorSpace); h.intensity = opts.amb ?? 1; }
     else { h.color.set(0xcfd6dc); h.groundColor.set(0x40382f); h.intensity = 1.1; }
   }
+  if (skyDome) skyDome.visible = false;
+  if (opts.sky && skyDome) {
+    skyDome.visible = true; skyDome.position.copy(cam.position);
+    const hz = new THREE.Color().setRGB(...scene.sky.haze, THREE.SRGBColorSpace);
+    world.background = hz; world.fog = new THREE.Fog(hz, 150, opts.fog || 3000);
+    cam.far = 9000; cam.updateProjectionMatrix();
+    // the weather's light: from the dawn glow 12 degrees up in the east-north-east, rose; the trilight ambient as a hemisphere
+    const s = scene.sky.sun, from = new THREE.Vector3(s[0], 0.2, -s[2]).normalize();
+    sun.position.copy(cam.position).addScaledVector(from, 1000); if (sun.target) { sun.target.position.copy(cam.position); world.add(sun.target); }
+    sun.color.setRGB(0.95, 0.68, 0.58, THREE.SRGBColorSpace); sun.intensity = 1.05 * Math.PI * 0.5;
+    for (const h of world.children.filter(o => o.isHemisphereLight)) { h.color.setRGB(0.34, 0.40, 0.60, THREE.SRGBColorSpace); h.groundColor.setRGB(0.26, 0.24, 0.28, THREE.SRGBColorSpace); h.intensity = 2.2; }
+  }
   renderer.render(world, cam);
+  if (opts.sky) { sun.color.set(0xffffff); }
   return true;
 };
 // window.probe(): after a shot, the magenta (open) pixels' middle and what the rays just round it hit (batch, point): finds a hole's edges

@@ -92,7 +92,19 @@ internal static class Program
 			for (int i = 0; i < r.Count; i++) { if (i > 0) sb.Append(','); sb.Append(r.P[i].x.ToString("0.#")).Append(',').Append(r.P[i].y.ToString("0.#")).Append(',').Append(r.P[i].z.ToString("0.#")); }
 			sb.Append(']');
 		}
-		sb.Append("}}");
+		// the painted dawn sky (SkyPaint), as an equirectangular picture: row 0 straight down, left edge looking west round through south
+		const int SW = 512, SH = 256;
+		var sky = new byte[SW * SH * 4];
+		for (int j = 0; j < SH; j++)
+			for (int i = 0; i < SW; i++)
+			{
+				double el = -Math.PI / 2 + (j + 0.5) * Math.PI / SH, az = -Math.PI + (i + 0.5) * 2 * Math.PI / SW;
+				SkyPaint.Colour((float)(Math.Cos(el) * Math.Cos(az)), (float)Math.Sin(el), (float)(Math.Cos(el) * Math.Sin(az)), out float sr, out float sg, out float sbl);
+				int k = (j * SW + i) * 4; sky[k] = (byte)(sr * 255); sky[k + 1] = (byte)(sg * 255); sky[k + 2] = (byte)(sbl * 255); sky[k + 3] = 255;
+			}
+		sb.Append("},\"sky\":{\"w\":").Append(SW).Append(",\"h\":").Append(SH).Append(",\"haze\":[").Append(SkyPaint.Haze[0]).Append(',').Append(SkyPaint.Haze[1]).Append(',').Append(SkyPaint.Haze[2])
+			.Append("],\"sun\":[").Append(SkyPaint.Sun[0]).Append(',').Append(SkyPaint.Sun[1]).Append(',').Append(SkyPaint.Sun[2]).Append("],\"px\":\"").Append(Convert.ToBase64String(sky)).Append("\"}");
+		sb.Append('}');
 		File.WriteAllText(args[0], sb.ToString());
 		Console.WriteLine(b.Count + " batches, " + tris + " triangles -> " + args[0]);
 	}
