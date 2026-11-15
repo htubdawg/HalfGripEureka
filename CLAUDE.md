@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.5.1 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.5.2 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -142,6 +142,12 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.5.2** (owner: the song is "a bit quieter than the others"). It was -21.9 LUFS integrated, true peak -9.2 dBFS; raised by a flat
+  7.9 dB (no limiting or compression) to -14.0 LUFS, true peak -1.3 dBFS, re-encoded Vorbis q8 (ffmpeg `volume=7.9dB`, libvorbis), the
+  same 5,008,921 samples so the loop is unchanged. The game's songs are not in HalfGripRefs (DLLs only), so they were not measured:
+  -14 is a usual master for game music. The game plays every race song at AudioSource volume 1 through its Music mixer group, so the
+  file's level is the only control. Not checked: in game against the game's songs.
 
 - **0.5.1** (owner: the track's song, "Last Exit"). `music/Last Exit.ogg` (Ogg Vorbis, 48 kHz stereo, 1:44) is read at mod load in the
   background (`Music.Load`, kept compressed in memory, `DontUnloadUnusedAsset`), named "Last Exit" as the game's clips are ("Forest OST"),
