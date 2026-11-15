@@ -56,6 +56,7 @@ namespace EurekaMine
 			VerboseLog = ctx.Config.Bind("Debug", "VerboseLog", false, "Write the detailed build log.");
 
 			Route.Load();
+			Music.Load();
 			MapEntry.Ensure();
 			ctx.OnSceneLoaded(scene =>
 			{

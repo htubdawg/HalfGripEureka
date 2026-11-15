@@ -76,6 +76,11 @@ namespace EurekaMine
 			map.mirrorReverseIcon = null;
 			map.excludeFromLast = false;
 			map.notBesideSameTrack = false;
+			// the map's own song once it is loaded (Music), else the Stadium's until then
+			if (Music.Clip != null)
+			{
+				map.musicTrack = Music.Clip;
+			}
 			map.altMusicTrack = null;
 			map.altMusicChance = 0f;
 
