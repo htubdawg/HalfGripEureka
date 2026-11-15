@@ -107,8 +107,8 @@ namespace EurekaMine
 			float w = nc.Width, d = nc.Depth, h = nc.High;
 			switch (nc.Road == Route.Seam ? 300 + nc.Kind : nc.Kind)
 			{
-				case 0: Brattice(f, w, h); break;
-				case 1: Stopping(f, w, h); break;
+				case 0: Brattice(nc, f, w, h); break;
+				case 1: Stopping(nc, f, w); break;
 				case 2: CarInNiche(f, w); break;
 				case 3: Supplies(f, w); break;
 				case 4: Barricade(f, w, h); break;
@@ -122,28 +122,81 @@ namespace EurekaMine
 			}
 		}
 
+		/// <summary>
+		/// A wall across a side passage built to its own rough rock: a fan from the middle of the ring of rock nearest the depth asked to
+		/// that ring's vertices, so its edge lies on the rock all round (0.4.8 and before set a flat rectangle the opening's size in the
+		/// mouth, which read as a panel stuck on the rib). Faces the road; fold puts gentle folds across it (a curtain). Returns the depth used.
+		/// </summary>
+		private static float Seal(Batch batch, Mine.Niche nc, float depth, float fold, float tile)
+		{
+			int s = 1;
+			for (int k = 1; k < nc.RingDepth.Length; k++)
+			{
+				if (Mathf.Abs(nc.RingDepth[k] - depth) < Mathf.Abs(nc.RingDepth[s] - depth))
+				{
+					s = k;
+				}
+			}
+			Vector3[] ring = nc.Rings[s];
+			Vector3 o = nc.Out, side = Vector3.Cross(Vector3.up, o).normalized;
+			Vector3 centre = nc.Mouth + o * nc.RingDepth[s] + Vector3.up * (nc.High * 0.5f);
+			centre.y = 0f;
+			foreach (Vector3 q in ring)
+			{
+				centre.y += q.y / ring.Length;
+			}
+			const int steps = 3;
+			Vector2 Uv(Vector3 q) => new Vector2(Vector3.Dot(q - nc.Mouth, side) / tile, (q.y - nc.Mouth.y) / tile);
+			Vector3 At(int k, int j)
+			{
+				float f = (float)j / steps;
+				Vector3 q = Vector3.Lerp(centre, ring[k], f);
+				return q + o * (fold * Mathf.Sin(Vector3.Dot(q - nc.Mouth, side) * 1.4f) * (1f - f * f));
+			}
+			for (int k = 0; k < ring.Length; k++)
+			{
+				int k1 = (k + 1) % ring.Length;
+				for (int j = 0; j < steps; j++)
+				{
+					Vector3 p00 = At(k, j), p01 = At(k1, j), p10 = At(k, j + 1), p11 = At(k1, j + 1);
+					Tri(batch, p00, p10, p11, -o, Uv);
+					if (j > 0)
+					{
+						Tri(batch, p00, p11, p01, -o, Uv);
+					}
+				}
+			}
+			return nc.RingDepth[s];
+		}
+
+		/// <summary>A triangle wound to face a direction (Unity's front face: the normal Cross(b - a, c - a)).</summary>
+		private static void Tri(Batch batch, Vector3 a, Vector3 b, Vector3 c, Vector3 facing, System.Func<Vector3, Vector2> uv)
+		{
+			if (Vector3.Dot(Vector3.Cross(b - a, c - a), facing) < 0f)
+			{
+				Vector3 t = b;
+				b = c;
+				c = t;
+			}
+			batch.Triangle(batch.Vertex(a, uv(a)), batch.Vertex(b, uv(b)), batch.Vertex(c, uv(c)));
+		}
+
 		/// <summary>A yellow brattice curtain hung across the crosscut on a timber header: it steers the air down the haulage.</summary>
-		private static void Brattice(Frame f, float w, float h)
+		private static void Brattice(Mine.Niche nc, Frame f, float w, float h)
 		{
 			Batch cloth = Get("brattice", Tex.Brattice, Color.white);
 			cloth.TwoSided = true;
-			// hung in folds: a zigzag of panels
-			int folds = 8;
-			for (int k = 0; k < folds; k++)
-			{
-				float x0 = -w * 0.5f + w * k / folds, x1 = -w * 0.5f + w * (k + 1) / folds;
-				float z0 = 3f + (k % 2) * 0.7f, z1 = 3f + ((k + 1) % 2) * 0.7f;
-				cloth.Quad(f.P(x0, 0.4f, z0), f.P(x0, h - 0.6f, z0), f.P(x1, h - 0.6f, z1), f.P(x1, 0.4f, z1), 6f);
-			}
-			Timber.Box(f.P(0f, h - 0.5f, 3.3f), new Vector3(w, 1f, 1f), f.Q, 4f);
+			// hung in folds, out to the rock all round
+			float z = Seal(cloth, nc, 4.5f, 0.45f, 6f);
+			Timber.Box(f.P(0f, h - 0.5f, z - 0.6f), new Vector3(w, 1f, 1f), f.Q, 4f);
 		}
 
-		/// <summary>A concrete block stopping sealing the crosscut, with its steel man door.</summary>
-		private static void Stopping(Frame f, float w, float h)
+		/// <summary>A concrete block stopping sealing the crosscut, built out to the rock all round, with its steel man door.</summary>
+		private static void Stopping(Mine.Niche nc, Frame f, float w)
 		{
-			Get("stoppings", Tex.Concrete, Color.white, true).Box(f.P(0f, h * 0.5f, 5f), new Vector3(w, h, 1.6f), f.Q, 6f);
-			DarkSteel.Box(f.P(w * 0.2f, 3.8f, 4.1f), new Vector3(4.2f, 7.4f, 0.3f), f.Q, 3f);
-			Glow(new Color(0.9f, 0.2f, 0.1f)).Box(f.P(w * 0.2f, 8.2f, 4.1f), new Vector3(1f, 0.6f, 0.3f), f.Q, 1f);
+			float z = Seal(Get("stoppings", Tex.Concrete, Color.white, true), nc, 6f, 0f, 6f);
+			DarkSteel.Box(f.P(w * 0.2f, 3.8f, z - 0.2f), new Vector3(4.2f, 7.4f, 0.3f), f.Q, 3f);
+			Glow(new Color(0.9f, 0.2f, 0.1f)).Box(f.P(w * 0.2f, 8.2f, z - 0.2f), new Vector3(1f, 0.6f, 0.3f), f.Q, 1f);
 		}
 
 		private static void CarInNiche(Frame f, float w)
@@ -296,7 +349,7 @@ namespace EurekaMine
 				{
 					// the cable hangs a little behind the guard line from a steel hanger at every point, each hanger bolted into the rough
 					// rib behind it (0.4.7's hooks stood in the air, up to ten units clear of the rock), and sags a little between them
-					Vector3 h0 = a + ra * (ha + 0.6f) + Vector3.up * (ta - 2.5f), h1 = c + rc * (hc + 0.6f) + Vector3.up * (tc - 2.5f);
+					Vector3 h0 = r.Edge(i, ha + 0.6f, ta - 2.5f), h1 = r.Edge(i + 1, hc + 0.6f, tc - 2.5f);
 					Vector3 mid = (h0 + h1) * 0.5f + Vector3.down * 0.45f;
 					cable.Cylinder(h0, mid, 0.3f, 5, 2f, false);
 					cable.Cylinder(mid, h1, 0.3f, 5, 2f, false);
@@ -304,7 +357,7 @@ namespace EurekaMine
 				}
 				if (trolley && !Route.InsideOther(r, a, -2f))
 				{
-					Vector3 w0 = a + ra * (ha * 0.35f) + Vector3.up * (r.CeilAt(i) - 3.2f), w1 = c + rc * (hc * 0.35f) + Vector3.up * (r.CeilAt(i + 1) - 3.2f);
+					Vector3 w0 = r.Edge(i, ha * 0.35f, r.CeilAt(i) - 3.2f), w1 = r.Edge(i + 1, hc * 0.35f, r.CeilAt(i + 1) - 3.2f);
 					wire.Cylinder(w0, w1, 0.12f, 4, 2f, false);
 					if (i % 3 == 0)
 					{
@@ -390,7 +443,7 @@ namespace EurekaMine
 					}
 					Vector3 right = r.Right(i);
 					Vector3 normal = -right * outer;
-					Vector3 at = r.At(i) + right * outer * (r.HalfAt(i) + 0.35f) + Vector3.up * 6f;
+					Vector3 at = r.Edge(i, outer * (r.HalfAt(i) + 0.35f), 6f);
 					Board(board, at, normal, r.Forward(i), 6f, 4.5f);
 					// the board (under the power cable) on a steel backing and two brackets back to the rock behind it (rib rows 3 and 4)
 					Quaternion q = Quaternion.LookRotation(-normal, Vector3.up);
@@ -446,7 +499,7 @@ namespace EurekaMine
 		{
 			Vector3 f = r.Forward(i);
 			float ta = r.CeilAt(i) - (Mine.Height - Mine.WallTop);
-			Vector3 c = r.At(i) + r.Right(i) * (offset * r.HalfAt(i)) + Vector3.up * (ta - 1.6f);
+			Vector3 c = r.Edge(i, offset * r.HalfAt(i), ta - 1.6f);
 			Placard(c, -f, w, 3.2f, text, ink, Tex.Enamel, paint);
 			DarkSteel.Box(c + Vector3.up * 2.6f + r.Right(i) * (w * 0.4f), new Vector3(0.2f, 2f, 0.2f), Quaternion.identity, 1f);
 			DarkSteel.Box(c + Vector3.up * 2.6f - r.Right(i) * (w * 0.4f), new Vector3(0.2f, 2f, 0.2f), Quaternion.identity, 1f);
@@ -460,7 +513,7 @@ namespace EurekaMine
 				return;
 			}
 			Vector3 normal = -r.Right(i) * side;
-			Vector3 c = r.At(i) + r.Right(i) * side * (r.HalfAt(i) - 0.25f) + Vector3.up * height;
+			Vector3 c = r.Edge(i, side * (r.HalfAt(i) - 0.25f), height);
 			Placard(c, normal, w, h, text, ink, Tex.Enamel, paint);
 		}
 

@@ -3,7 +3,7 @@
 A Half Grip (Steam app 4163270, Unity 6, Windows) mod that adds one race map: **Eureka Mine**, a caricature of a Pennsylvania coal
 mine (no one mine: breakers, culm banks and patch towns from the anthracite fields, drifts and tipples from the bituminous ones).
 The race starts in the pithead yard, runs down a slope into the mine, and every lap after that is underground. The release is
-`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.8 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
+`EurekaMine/mod.json` (`version`, `gameVersion`, `tools`): 0.4.11 for game 0.419 and HalfGripTools 1.0.6 at the time of writing.
 
 ## How the mod runs
 
@@ -22,7 +22,7 @@ The race starts in the pithead yard, runs down a slope into the mine, and every 
 | Path | Role |
 |---|---|
 | `art/route.py` | Curve maths: anchor poses joined by Dubins (curve-straight-curve) paths of a set radius, or a helix; sampling every 8 units; height smoothing |
-| `art/layout.py` | **The layout** (anchors of the lap, the two alternate routes and the run in), the checks (grades, 34 units of vertical clearance wherever roads overlap in plan), the drawings, and the bake into `EurekaMine/src/RouteData.cs` |
+| `art/layout.py` | **The layout** (anchors of the lap, the two alternate routes and the run in), the bank (each point's lean into its bend, flat at forks, joins, the pit bottom, the plane and the chute doors), the checks (grades, edge grades of the banked floor, 34 units of vertical clearance wherever roads overlap in plan), the drawings, and the bake into `EurekaMine/src/RouteData.cs` |
 | `art/make_icons.py` | `icon.png` and `sprites/eureka_icon.png` (12x12, like the game's map icons) |
 | `art/preview/` | Pictures of the built mine without the game (see Checking changes) |
 | `docs/plan.png` | The plan drawing the README shows (copy of `art/layout.py`'s output) |
@@ -70,6 +70,9 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
   adding anything (the owner's call after 0.3.0: no feature creep, such as the door lamps 0.3.0 added and 0.4.0 removed).
 
 - **Change the layout in `art/layout.py`, never `RouteData.cs`.** Run it and read its checks: `clearance problems ... 0`, grades.
+- **Banked floors (0.4.11):** the whole bore is sheared with the floor's lean (`Road.Bank`, ribs upright). Anything placed against a road
+  at a lateral offset must go through `Road.Edge(i, lateral, height)` or `Road.Lift(i, p)`, or it floats or sinks on a bend. The drivable
+  floor is `Road.Floor(t, lateral)` (a spline) in a grid of `Mine.FloorAlong` x `FloorAcross` cells per step, never one quad per step.
 - **Bump `version` in `mod.json` with every change that ships**, and the version line in `README.md`. Set `gameVersion` and `tools`
   to the current game and HalfGripTools at the same time.
 - C# 10 and netstandard2.1 only. Tabs, `///` summaries that say why.
@@ -78,7 +81,7 @@ gangway about -42, the dip -66, the upper seam up to -24, upper gangway +40, the
 - **Lights:** the bulbs' light is **painted at build time** (`Glow`), never real lights: every bulb lights its stretch at any
   distance and nothing switches on or off in view (0.4.0 and 0.4.1 moved 8 real lights to the nearest bulbs: popping, then black past
   them). The glow is a twin of each lit surface, its texture times vertex colours, drawn added (`GlowMats`: a copy of a scene material
-  on URP Particles/Unlit, so the variant exists in the build). Only the cars' headlights are real. The game is URP **Forward** with a
+  on URP Particles/Unlit, so the variant exists in the build). Only the cars' headlights are real, made brighter and wider underground (`Underground.Headlamp`, see 0.4.10). The game is URP **Forward** with a
   per-object limit of 8 (0.419 log), so batches are cut into 120-unit cells (`Batch.ToMeshes`) for the headlights (0.1.0's one mesh
   per batch: they lit nothing). The old pool (`LampLights`) runs only if the glow's shader is missing.
 - **Nothing visible stands in the road unless it is solid and meant to be:** the cars touch invisible smooth guard walls and roof at
@@ -105,7 +108,8 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - **Pictures without the game:** `art/preview/run.sh <outdir>` compiles `Mine`, `Pithead`, `Props`, `Route`, `MeshKit` and `Textures`
   against a stand-in for UnityEngine (`art/preview/Stubs.cs`) and draws the meshes, with their textures, in three.js in headless
   Chromium; underground shots are lit by the painted glow as the game draws it (texture times vertex colour, added), with
-  `opts.pool` drawing 0.4.1's real-light pool instead; `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
+  `opts.pool` drawing 0.4.1's real-light pool instead, and `opts.lamps` a car's headlight as URP lights it (the `40_head_*` chase shots:
+  none, the game's, the mine's; `HEADTRY="i,outer,inner,pitch;..."` for others, `ONLY=40_` to take just those); `GLOW="strength,near"` tries other glow values without editing `Glow.cs`. Sign lettering (TextMeshPro), hazards and particles are not drawn. When the mod starts using a Unity member the stub
   lacks, the preview build fails: add it to `Stubs.cs` with Unity's meaning (e.g. `Mathf.SmoothStep` interpolates). Add a shot to
   `art/preview/shots.py` for whatever changed, look at it, and send the owner pictures. Run with `TMPDIR` set to the scratchpad.
 - **Rock in the road:** `INTRUDE=1 dotnet <work>/bin/preview.dll scene.json` (after a `run.sh`) lists drawn rock standing inside a
@@ -115,6 +119,11 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
   against a magenta sky with no fog, and counts the views underground where magenta shows (`holes/holes.json`, pictures of the worst;
   `HOLES=2` for every second point). Run it after any change to the rock, passages, floors or junctions: it must report 0.
   `window.probe()` in `view.html` names what the rays round a hole hit.
+- **Walls seen from behind:** `BACKS=1` with the hole scan (or `opts.backs` in a shot) draws every one-sided surface's back in magenta:
+  the game culls it, so from there the player sees through it (the owner's "1-way visible walls"). Surfaces built both ways (`QuadBoth`,
+  the rock at forks) are left out. `window.pick(x, y)` names what a pixel's ray hits, back faces included. After 0.4.9: 114 views of
+  1 to 91 pixels of 57,600, all slivers (the cable tube's open ends, rubble and spill edges, the seam's floor edge at its fork), and the
+  sky through the drift mouth looking back up the slope.
 - **In game** only the owner can test. Say what to look at and which log lines (`Debug.VerboseLog`) tell the outcomes apart.
 
 ## Working with the owner
@@ -126,6 +135,53 @@ The private repo `htubdawg/HalfGripRefs` has the game's DLLs, scene dumps and to
 - Push to the session's branch; open a PR only when asked.
 
 ## Status
+
+- **0.4.11** (owner, in game on 0.4.10: "Spiral road is very bumpy, seems like you made it out of a bunch of steps... could do with some
+  smoothing on angled surfaces and adding banks to turns"). Cause: the floor was one flat quad per 8-unit step; on a climbing bend the
+  inside edge climbs steeper than the outside (on the spiral 11% against 7.7%), so every quad was twisted and folded along its
+  diagonal, its two triangles 2 degrees apart, alternating every 4 units across the full width (the heights themselves were smooth).
+  Now the floor is a Catmull-Rom spline through the points (height and lean too), 4 x 8 cells per step with shared vertices: about
+  0.4 degrees between neighbours at worst (`Road.Floor`, `Mine.FloorPanel`). Banks: `layout.py` bakes a lean per point,
+  `BANK_GAIN / radius` degrees (800; the spiral 7, the second switchback and the dip 10, at most `BANK_MAX` 10), curvature averaged
+  over 64 units, eased to flat over 64 at forks and joins (a branch on the lap's floor), the pit bottom chamber, the plane (runaway
+  cars), the chute's doors and the whole run in (its one bend, 3 degrees, runs into the pit bottom merge, where a lean uncovered
+  the back of the haulage's rock); rubble heaps sink by the lean. So the first switchback (on the chute's fork) stays flat. Steepest along a banked edge
+  15.9% (the dip's S-bend; the road's own steepest 10.8%). The bore, guard, posts, rails, puddles, rubble, passages, cable, chevrons,
+  signs and coal chutes follow it. Checked: layout clearance 0; compiles with no warnings; preview before/after of the spiral, hairpin
+  and dip; rock in the road unchanged (462: the chamber's ends and the dust bags); hole and back-face scan (`HOLES=1 BACKS=1`) against
+  0.4.10: 118 views underground against 114, 3005 magenta pixels against 3022, the same slivers moved by 1 to 3 pixels (two new ones it
+  found, at the hairpin's rubble and the slope's merge, fixed). Not checked: in game (how it
+  drives, the bots on banked bends).
+
+- **0.4.10** (owner, in game on 0.4.9: "Track is looking good but the headlights seem to not do a whole lot"; check nothing interferes,
+  else improve them). Interference: none found. The game's headlight is one spot per car (`Headlights/Spot Light`, intensity 500, range
+  150, colour (0.7, 0.68, 0.54), shadows off; its cone and aim are not in the scene dump); only `HeadLightsController.Start` (weather's
+  `headlightsActive`) and the bots' `PitGuard` flash touch it in the game's code, and the mod's `Underground` switches it on below the
+  yard. The mine is URP/Lit (the Stadium ground's shader), on the ground's layer, normals recalculated, cells of 120 with one light per
+  car. Why it lit little: intensity over distance squared, aimed along a bore so it meets floor and ribs at a grazing angle, on dark rock
+  (the preview with the game's light, a 30 degree cone guessed: barely visible). Now underground (eased in with the car's depth) every
+  car's headlight is `HeadlightBoost` (8) times as bright, its cone at least `HeadlightAngle` (110; inner 55% of it) and its range at least
+  220; written only when the target changes, so PitGuard's flash still works; put back on unload. Still one light per car. As a guard,
+  the mine's renderers take the Stadium ground's `renderingLayerMask` (URP lights only renderers sharing a rendering layer). Log line,
+  always written once: `Headlight: Spot intensity ... cone A/B aim (local) ... culling mask includes|EXCLUDES the mine's layer ...;
+  rendering layers light X, mine Y (shared|NONE SHARED)`. Checked: compiles with no warnings; preview chase shots, none/game/mine.
+  Not checked: in game (the real cone and aim, how bright x8 reads with the game's exposure and bloom).
+
+- **0.4.9** (owner, in game on 0.4.8, with a screenshot: "Still have a lot of 1-way visible walls and floors. The decorative side-rooms
+  still have 2D planes for walls instead of looking naturally embedded into the terrain"): a new check in the preview (`BACKS=1`, see
+  Checking changes) found 480 views underground showing one-sided rock from behind (see-through in game). Causes: (1) every side
+  passage's first rings flared out sideways and up into open air in front of the bore's rough rib, so from the road its outside showed:
+  a frame of see-through rock round every opening (the "2D planes"). Each passage vertex is now pushed back until the line from the
+  ring before it lies behind the bore's rock (`BoreDepth`, 8 samples, 1.6 clear). (2) Beside each opening the rib was pressed flat onto
+  the guard line for a whole point: a flat panel. Now the rib stays rough, softly squashed to within `MouthBack` (2.8; 5.6 for its top
+  row) of the guard over the opening and 6 units either side and let out by 2.5 points (`AtMouth`). (3) Openings were rectangles: now
+  a rough arch, open to row 3 at the two end columns, row 4 at the next, row 5 between (`TopRow`); the passage's first ring is the bore's
+  own vertices round it and the passage's section is matched to that outline by length (`Section`). (4) The brattice and the stopping
+  were flat rectangles in the mouth: now built to a ring of the passage's rock (`Props.Seal`), out to the rock all round. (5) At forks and
+  joins the rock between two tunnels parting showed its back to the other tunnel: within 40 units of another road the rock is built
+  both ways. Also `QuadBoth` turns its second face round on the same diagonal. After: 114 views of slivers (worst 91 pixels, was 14,656
+  of 57,600); hole scan 1 view of 2 pixels at haulage 199 (the hairline 0.4.6 left); rock in the road unchanged (pit bottom only);
+  ~690k preview triangles (665k). Checked: compiles with no warnings; preview sheets before and after. Not checked: in game.
 
 - **0.4.8** (owner, in game on 0.4.7, with screenshots; the light changes not yet tried): (1) houses "look bad and have 2 chimneys",
   the church "some sort of weird mosque or orthodox style": `Village.cs` builds company double houses (stone foundation, clapboard

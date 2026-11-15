@@ -161,6 +161,9 @@ namespace EurekaMine
 			// filled in when built: the opening's middle on the floor, the way out of the tunnel into it, along the road, its width
 			public Vector3 Mouth, Out, Along;
 			public float Width;
+			/// <summary>The passage's rings of rock from the mouth in, and how deep each is: for fills built to the rock (a stopping, a brattice).</summary>
+			public Vector3[][] Rings;
+			public float[] RingDepth;
 		}
 
 		internal static readonly List<Niche> Niches = new List<Niche>();
@@ -210,7 +213,7 @@ namespace EurekaMine
 		// rib top, an elliptical arch to the crown), and the rock the player sees is that shape pushed back by noise at two scales,
 		// built of shared vertices so it shades smoothly. The cars touch only the guard: the same shape without the noise.
 
-		/// <summary>Heights of the rib's rows. Side passages open from the floor to row 3, so their openings meet the rows exactly.</summary>
+		/// <summary>Heights of the rib's rows. Side passages open from the floor to row 3 to 5 (`TopRow`), so their openings follow the rows exactly.</summary>
 		private static readonly float[] RibRows = { -1.5f, 1.5f, 3.5f, 5.5f, 7.5f, 10f, WallTop };
 		internal const float PassageHigh = 10f;
 		/// <summary>The rib row at PassageHigh: a side passage opens the rows below it.</summary>
@@ -256,8 +259,8 @@ namespace EurekaMine
 			normal = new Vector2(Mathf.Cos(phi) / h, Mathf.Sin(phi) / Mathf.Max(1f, rise)).normalized;
 		}
 
-		/// <summary>The road's frame at a fractional point t (between points): where it is, its right, its half width and roof.</summary>
-		private static void Frame(Road r, float t, out Vector3 at, out Vector3 right, out float half, out float ceil)
+		/// <summary>The road's frame at a fractional point t (between points): where it is, its right, its half width, roof and the floor's lean.</summary>
+		private static void Frame(Road r, float t, out Vector3 at, out Vector3 right, out float half, out float ceil, out float bank)
 		{
 			int i = Mathf.FloorToInt(t);
 			float f = t - i;
@@ -265,14 +268,16 @@ namespace EurekaMine
 			right = Vector3.Lerp(r.Right(i), r.Right(i + 1), f).normalized;
 			half = Mathf.Lerp(r.HalfAt(i), r.HalfAt(i + 1), f);
 			ceil = Mathf.Lerp(r.CeilAt(i), r.CeilAt(i + 1), f);
+			bank = Mathf.Lerp(r.BankAt(i), r.BankAt(i + 1), f);
 		}
 
 		/// <summary>The rock's point k across the section at the fractional point t of a road.</summary>
 		internal static Vector3 Rock(Road r, float t, int k)
 		{
-			Frame(r, t, out Vector3 p, out Vector3 right, out float h, out float ceil);
+			Frame(r, t, out Vector3 p, out Vector3 right, out float h, out float ceil, out float bank);
 			Shape(h, ceil, k, out float lateral, out float height, out Vector2 n);
-			Vector3 at = p + right * lateral + Vector3.up * height;
+			// the bore leans with the banked floor: sheared, ribs upright, every row at its height over the floor beneath it
+			Vector3 at = p + right * lateral + Vector3.up * (height + lateral * bank);
 			bool arch = k >= RibRows.Length && k < SectionCount - RibRows.Length;
 			float back = Back(at, r == Route.Seam ? 1.35f : 1f);
 			if (arch)
@@ -285,10 +290,7 @@ namespace EurekaMine
 			{
 				back = Mathf.Max(back, Clearance(r, near, k));
 			}
-			if (Flat(r, t, k))
-			{
-				back = 0f;
-			}
+			back = AtMouth(r, t, k, back);
 			return at + (right * n.x + Vector3.up * n.y) * back;
 		}
 
@@ -306,11 +308,6 @@ namespace EurekaMine
 
 		/// <summary>Points where the rock must stand further back (an occasional post): (road, point, side) to the least distance.</summary>
 		private static readonly Dictionary<long, float> clear = new Dictionary<long, float>();
-		/// <summary>A side passage's two edge points: the rib's rows up to PassageHigh stand on the guard line there, so the passage's sides meet them.</summary>
-		private static readonly HashSet<long> flat = new HashSet<long>();
-		/// <summary>The points of a passage's opening: the rib's row at PassageHigh stands on the guard line over it, so the mouth's top meets it.</summary>
-		private static readonly HashSet<long> lintel = new HashSet<long>();
-
 		private static long Key(Road r, int i, float side)
 		{
 			return ((long)Route.All.IndexOf(r) << 40) | ((long)r.Wrap(i) << 1) | (side > 0f ? 1L : 0L);
@@ -325,24 +322,42 @@ namespace EurekaMine
 			return clear.TryGetValue(Key(r, i, k < RibRows.Length ? -1f : 1f), out float c) ? c : 0f;
 		}
 
-		/// <summary>On a side passage's opening (its points, and between them) the rib's rows up to PassageHigh stand on the guard line.</summary>
-		private static bool Flat(Road r, float t, int k)
+		/// <summary>
+		/// The rib's depth (back from the guard) at a side passage's opening: the passage's mouth is cut from the bore's own rough rock (its
+		/// first ring is the rib's vertices there), so the rib stays rough round it, only squashed to within MouthBack of the guard (softly, so
+		/// it keeps its lumps rather than going flat where it meets the cap) over the opening and 6 units either side, and let out to its
+		/// full depth by 2.5 points away. Until 0.4.8 the rib was pressed onto the guard line there: a flat panel the owner saw in game as
+		/// "2D planes for walls" beside every passage.
+		/// </summary>
+		private static float AtMouth(Road r, float t, int k, float back)
 		{
 			int row = k < RibRows.Length ? k : SectionCount - 1 - k;
-			if (row > PassageRow || k >= RibRows.Length && k < SectionCount - RibRows.Length)
+			// the rows up the opening, and the rib's top row over it with more room (the passage's first rings lean up into the rock there)
+			if (row > PassageRow + 1 || k >= RibRows.Length && k < SectionCount - RibRows.Length || !plans.TryGetValue(r, out Dictionary<int, Niche> niches))
 			{
-				return false;
+				return back;
 			}
 			float side = k < RibRows.Length ? -1f : 1f;
-			int i0 = Mathf.FloorToInt(t + 1e-4f);
-			bool onPoint = Mathf.Abs(t - Mathf.Round(t)) < 1e-4f;
-			if (onPoint && flat.Contains(Key(r, Mathf.RoundToInt(t), side)))
+			float free = 1f;
+			foreach (Niche nc in niches.Values)
 			{
-				return true;
+				if (nc.Side == side)
+				{
+					float outside = Mathf.Max(0f, Mathf.Max(nc.I - t, t - (nc.I + nc.Span)) - 0.75f) / 1.75f;
+					free = Mathf.Min(free, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(outside)));
+				}
 			}
-			bool over = onPoint ? lintel.Contains(Key(r, Mathf.RoundToInt(t), side)) : lintel.Contains(Key(r, i0, side)) && lintel.Contains(Key(r, i0 + 1, side));
-			return row == PassageRow && over;
+			if (free >= 1f)
+			{
+				return back;
+			}
+			float room = (row > PassageRow ? 2f * MouthBack : MouthBack) - 0.9f;
+			float held = 0.9f + room * (1f - Mathf.Exp(-Mathf.Max(0f, back - 0.9f) / room));
+			return Mathf.Lerp(held, back, free);
 		}
+
+		/// <summary>The most the rib stands back from the guard over a side passage's opening.</summary>
+		private const float MouthBack = 2.8f;
 
 		/// <summary>An occasional timber post against a rib, every so often where the rib is whole (the rock is cleared back behind it).</summary>
 		private static bool PostAt(Road r, int i, float side, Dictionary<int, Niche> niches)
@@ -372,21 +387,10 @@ namespace EurekaMine
 		{
 			plans.Clear();
 			clear.Clear();
-			flat.Clear();
-			lintel.Clear();
 			foreach (Road r in Route.All)
 			{
 				Dictionary<int, Niche> niches = PlanNiches(r, FirstInside(r));
 				plans[r] = niches;
-				foreach (Niche nc in niches.Values)
-				{
-					flat.Add(Key(r, nc.I, nc.Side));
-					flat.Add(Key(r, nc.I + nc.Span, nc.Side));
-					for (int k = nc.I; k <= nc.I + nc.Span; k++)
-					{
-						lintel.Add(Key(r, k, nc.Side));
-					}
-				}
 				int last = r.Closed ? r.Count : r.Count - 1;
 				for (int i = 0; i < last; i++)
 				{
@@ -454,31 +458,46 @@ namespace EurekaMine
 				// the floor, unless another road's floor is already there (a branch where it still runs on the lap's floor)
 				if (r == Route.Main || !(OnOtherFloor(r, aL) && OnOtherFloor(r, aR) && OnOtherFloor(r, cL) && OnOtherFloor(r, cR)))
 				{
-					Vector3 lift = surface ? Vector3.up * 0.06f : Vector3.zero;
-					(surface ? yard : floor).Quad(aL + lift, cL + lift, cR + lift, aR + lift, 12f);
+					if (surface)
+					{
+						Vector3 lift = Vector3.up * 0.06f;
+						yard.Quad(aL + lift, cL + lift, cR + lift, aR + lift, 12f);
+					}
+					else
+					{
+						FloorPanel(r, i, floor);
+					}
 				}
 				if (surface)
 				{
 					continue;
 				}
+				// the corners on the banked floor, for what is built against the floor's edges below
+				aL = r.Lift(i, aL);
+				aR = r.Lift(i, aR);
+				cL = r.Lift(i + 1, cL);
+				cR = r.Lift(i + 1, cR);
 
 				Vector3 up = Vector3.up;
 				bool leftOpen = Route.InsideOther(r, (aL + cL) * 0.5f + up * 2f, 1.5f);
-				// another road close by (a fork or join): only then is each rock quad tested against its space
-				bool nearOther = Route.InsideOther(r, a + up * 4f, -24f);
+				// another road close by (a fork or join): only then is each rock quad tested against its space, and built both ways
+				bool nearOther = Route.InsideOther(r, a + up * 4f, -40f);
 				bool rightOpen = Route.InsideOther(r, (aR + cR) * 0.5f + up * 2f, 1.5f);
 				Niche nl = NicheAt(niches, r, i, -1f), nr = NicheAt(niches, r, i, 1f);
 				// the floor runs on under the rock to its foot (drawn only), so no gap shows where the rib stands back from the guard
 				Batch skirt = Get(b, key + " floor edge", r.Ground == Surface.Coal ? Tex.Coal : old ? Tex.Culm : Tex.MineFloor, Color.white);
 				skirt.Shadows = false;
 				Vector3 sink = up * -0.04f;
+				// it starts a unit in under the floor's edge (the floor is a spline through the points, a hair either side of these
+				// straight edges) and runs out level from it
+				Vector3 inA = ra + up * r.BankAt(i), inC = rc + up * r.BankAt(i + 1);
 				if (!leftOpen && nl == null)
 				{
-					skirt.Quad(aL - ra * 12f + sink, cL - rc * 12f + sink, cL + sink, aL + sink, 12f);
+					skirt.Quad(aL - ra * 12f + sink, cL - rc * 12f + sink, cL + inC + sink, aL + inA + sink, 12f);
 				}
 				if (!rightOpen && nr == null)
 				{
-					skirt.Quad(aR + sink, cR + sink, cR + rc * 12f + sink, aR + ra * 12f + sink, 12f);
+					skirt.Quad(aR - inA + sink, cR - inC + sink, cR + rc * 12f + sink, aR + ra * 12f + sink, 12f);
 				}
 
 				// the rock: Sub columns per step, each a section of the rough bore, faces flat-shaded so it breaks like broken rock
@@ -497,8 +516,9 @@ namespace EurekaMine
 						Shape(ha, r.CeilAt(i), k + 1, out float lB, out float yB, out Vector2 unusedB);
 						float u1 = u0 + Mathf.Sqrt((lB - lA) * (lB - lA) + (yB - yA) * (yB - yA)) / 24f;
 						bool skip = leftRib && leftOpen || rightRib && rightOpen;
-						// a side passage opens the rib's rows below PassageHigh; the guard runs across it all the same
-						bool passage = row >= 0 && row < PassageRow && (leftRib ? nl != null : nr != null);
+						// a side passage opens the rib's rows up to its rough arch (TopRow); the guard runs across it all the same
+						Niche here = leftRib ? nl : rightRib ? nr : null;
+						bool passage = here != null && row >= 0 && row < TopRow(here, (i - here.I) * Sub + sub);
 						Vector3 p00 = Rock(r, t0, k), p01 = Rock(r, t0, k + 1), p11 = Rock(r, t1, k + 1), p10 = Rock(r, t1, k);
 						// at a fork or join, rock standing in the other road's space is left out (that road's own bore is round it)
 						if (!skip && !passage && (leftOpen || rightOpen || nearOther) && Route.InDrive(r, (p00 + p01 + p11 + p10) * 0.25f, 0.5f))
@@ -507,15 +527,15 @@ namespace EurekaMine
 						}
 						if (!skip && !passage)
 						{
-							if (arch)
+							// on the ribs u is the height over the floor, so the coal band sits at the same height on both
+							float ua = arch ? u0 : (yA + 1.5f) / 24f, ub = arch ? u1 : (yB + 1.5f) / 24f;
+							Batch into = arch ? roofRock : rock;
+							into.Quad(p00, p01, p11, p10, new Vector2(ua, v0), new Vector2(ub, v0), new Vector2(ub, v1), new Vector2(ua, v1));
+							if (nearOther)
 							{
-								roofRock.Quad(p00, p01, p11, p10, new Vector2(u0, v0), new Vector2(u1, v0), new Vector2(u1, v1), new Vector2(u0, v1));
-							}
-							else
-							{
-								// on the ribs u is the height over the floor, so the coal band sits at the same height on both
-								float ua = (yA + 1.5f) / 24f, ub = (yB + 1.5f) / 24f;
-								rock.Quad(p00, p01, p11, p10, new Vector2(ua, v0), new Vector2(ub, v0), new Vector2(ub, v1), new Vector2(ua, v1));
+								// at a fork or join the rock between two tunnels parting is seen from both: from the other one it showed its back
+								// (one-sided, so see-through, the owner's "1-way visible walls"), so there it is built both ways
+								into.Quad(p00, p10, p11, p01, new Vector2(ua, v0), new Vector2(ua, v1), new Vector2(ub, v1), new Vector2(ub, v0));   // the same diagonal, turned round
 							}
 						}
 						u0 = u1;
@@ -532,7 +552,7 @@ namespace EurekaMine
 					Shape(ha, r.CeilAt(i), k + 1, out float la1, out float hy1, out Vector2 unusedB);
 					Shape(hc, r.CeilAt(i + 1), k, out float lc0, out float hc0, out Vector2 unusedC);
 					Shape(hc, r.CeilAt(i + 1), k + 1, out float lc1, out float hc1, out Vector2 unusedD);
-					guard.Quad(a + ra * la0 + up * hy0, a + ra * la1 + up * hy1, c + rc * lc1 + up * hc1, c + rc * lc0 + up * hc0, 10f);
+					guard.Quad(r.Edge(i, la0, hy0), r.Edge(i, la1, hy1), r.Edge(i + 1, lc1, hc1), r.Edge(i + 1, lc0, hc0), 10f);
 				}
 				if (niches.TryGetValue(i, out Niche start))
 				{
@@ -550,7 +570,7 @@ namespace EurekaMine
 					{
 						float lean = ((i * 7) % 5 - 2) * 1.2f;
 						Quaternion turn = Quaternion.LookRotation(r.Forward(i), Vector3.up) * Quaternion.Euler(0f, (i % 3 - 1) * 8f, side * lean);
-						Vector3 foot = a + ra * side * (ha + 0.95f);
+						Vector3 foot = r.Edge(i, side * (ha + 0.95f), 0f);
 						timber.Cylinder(foot + Vector3.down * 0.5f, foot + turn * Vector3.up * (WallTop + 1.5f), 0.85f, 7, 4f, true);
 					}
 				}
@@ -582,7 +602,7 @@ namespace EurekaMine
 					float len = 3f + 5f * Hash(i, 6, 0, 34), wid = 1.5f + 3f * Hash(i, 7, 0, 35);
 					// an irregular blob: a fan round its middle, each edge point at its own distance
 					Vector3 f = r.Forward(i);
-					Vector3 mid = a + ra * off + f * (2f + len * 0.5f) + up * 0.05f;
+					Vector3 mid = r.Lift(i, a + ra * off + f * (2f + len * 0.5f)) + up * 0.05f;
 					int centre = wet.Vertex(mid, Vector2.zero);
 					int first = -1, prev = -1;
 					for (int k = 0; k < 9; k++)
@@ -590,6 +610,7 @@ namespace EurekaMine
 						float ang = k * Mathf.PI * 2f / 9f;
 						float rad = 0.6f + 0.5f * Hash(i, k, 8, 36);
 						Vector3 e = mid + f * (Mathf.Cos(ang) * len * 0.5f * rad) + ra * (Mathf.Sin(ang) * wid * rad);
+						e.y += Mathf.Sin(ang) * wid * rad * r.BankAt(i);
 						int id = wet.Vertex(e, Vector2.zero);
 						if (prev >= 0)
 						{
@@ -602,6 +623,40 @@ namespace EurekaMine
 						prev = id;
 					}
 					wet.Triangle(centre, prev, first);
+				}
+			}
+		}
+
+		/// <summary>Floor cells per 8-unit step along the road and across it: fine enough that the floor's turns and climbs read as smooth to a car.</summary>
+		private const int FloorAlong = 4, FloorAcross = 8;
+
+		/// <summary>
+		/// The floor from point i to i + 1: a grid of shared vertices on the road's spline (<see cref="Road.Floor"/>). It was one flat quad
+		/// per step; on a bend that climbs (the spiral) the inside edge climbs steeper than the outside, so each quad was twisted and folded
+		/// along its diagonal, 2 degrees each way every 4 units across the whole width (the owner, after 0.4.10: "very bumpy, made out of a
+		/// bunch of steps"). Now about 0.4 degrees between neighbouring cells at worst.
+		/// </summary>
+		private static void FloorPanel(Road r, int i, Batch floor)
+		{
+			float ha = r.HalfAt(i), hc = r.HalfAt(i + 1);
+			float sa = r.S[r.Wrap(i)], step = Vector3.Distance(r.At(i), r.At(i + 1));
+			int[,] id = new int[FloorAlong + 1, FloorAcross + 1];
+			for (int a = 0; a <= FloorAlong; a++)
+			{
+				float f = (float)a / FloorAlong;
+				float half = Mathf.Lerp(ha, hc, f);
+				for (int c = 0; c <= FloorAcross; c++)
+				{
+					float lateral = -half + 2f * half * c / FloorAcross;
+					id[a, c] = floor.Vertex(r.Floor(i + f, lateral), new Vector2((sa + step * f) / 12f, lateral / 12f));
+				}
+			}
+			for (int a = 0; a < FloorAlong; a++)
+			{
+				for (int c = 0; c < FloorAcross; c++)
+				{
+					// left to right across, as the old quad (aL, cL, cR, aR): facing up
+					floor.QuadIndex(id[a, c], id[a + 1, c], id[a + 1, c + 1], id[a, c + 1]);
 				}
 			}
 		}
@@ -768,12 +823,76 @@ namespace EurekaMine
 		/// <summary>How far a side passage's ribs reach down into its floor.</summary>
 		private const float Sink = 2.5f;
 
+		/// <summary>The rib row the opening reaches over rock column q (0 to Span * Sub - 1): lower at its two ends, so the opening is a rough arch.</summary>
+		private static int TopRow(Niche nc, int q)
+		{
+			int cols = nc.Span * Sub;
+			int end = System.Math.Min(q, cols - 1 - q);
+			return end == 0 ? PassageRow - 2 : end == 1 ? PassageRow - 1 : PassageRow;
+		}
+
+		/// <summary>A point on a side passage's smooth section by its share (0 to 1) of the way from the left foot over the arch to the right foot.</summary>
+		private static void Section(float share, float h, float high, float rise, out float lateral, out float height, out Vector2 normal)
+		{
+			float foot = RibRows[0];
+			float ribLen = high - foot;
+			// the arch's length, near enough (Ramanujan's ellipse perimeter, halved)
+			float arch = Mathf.PI * (3f * (h + rise) - Mathf.Sqrt((3f * h + rise) * (h + 3f * rise))) * 0.5f;
+			float total = 2f * ribLen + arch, at = share * total;
+			if (at <= ribLen)
+			{
+				lateral = -h;
+				height = foot + at;
+				normal = new Vector2(-1f, 0f);
+				return;
+			}
+			if (at >= ribLen + arch)
+			{
+				lateral = h;
+				height = high - (at - ribLen - arch);
+				normal = new Vector2(1f, 0f);
+				return;
+			}
+			float phi = Mathf.PI * (1f - (at - ribLen) / arch);
+			lateral = h * Mathf.Cos(phi);
+			height = high + rise * Mathf.Sin(phi);
+			normal = new Vector2(Mathf.Cos(phi) / h, Mathf.Sin(phi) / rise).normalized;
+		}
+
+		/// <summary>
+		/// How far the bore's rough rock on one side stands out along a direction from a point (its depth) at a height, at fractional point
+		/// t: false above the bore's crown (nothing of the bore there). For keeping a side passage's rock behind the bore's.
+		/// </summary>
+		private static bool BoreDepth(Road r, float t, float side, float y, Vector3 from, Vector3 dir, out float depth)
+		{
+			depth = 0f;
+			t = Mathf.Clamp(t, 0f, r.Closed ? r.Count : r.Count - 1.001f);
+			Vector3 prev = Rock(r, t, side < 0f ? 0 : SectionCount - 1);
+			if (y <= prev.y)
+			{
+				depth = Vector3.Dot(prev - from, dir);
+				return true;
+			}
+			for (int n = 1; n <= SectionCount / 2; n++)
+			{
+				Vector3 q = Rock(r, t, side < 0f ? n : SectionCount - 1 - n);
+				if (y <= q.y && q.y > prev.y)
+				{
+					Vector3 p = Vector3.Lerp(prev, q, (y - prev.y) / (q.y - prev.y));
+					depth = Vector3.Dot(p - from, dir);
+					return true;
+				}
+				prev = q.y > prev.y ? q : prev;
+			}
+			return false;
+		}
+
 		private static void BuildNiche(Niche nc, Dictionary<string, Batch> b)
 		{
 			Road r = nc.Road;
 			bool old = r == Route.Seam;
 			int a = nc.I, c = nc.I + nc.Span;
-			Vector3 pa = r.At(a) + r.Right(a) * nc.Side * r.HalfAt(a), pc = r.At(c) + r.Right(c) * nc.Side * r.HalfAt(c);
+			Vector3 pa = r.Edge(a, nc.Side * r.HalfAt(a), 0f), pc = r.Edge(c, nc.Side * r.HalfAt(c), 0f);
 			Vector3 o = (r.Right(a) + r.Right(c)).normalized * nc.Side;
 			nc.Mouth = (pa + pc) * 0.5f;
 			nc.Out = o;
@@ -794,47 +913,80 @@ namespace EurekaMine
 			// the passage's own section: ribs to PassageHigh and a low arch; its right (seen walking in) is across the opening
 			Vector3 side = Vector3.Cross(Vector3.up, o).normalized;
 			float h = nc.Width * 0.5f, high = nc.High, rise = 3f;
-			// as fine as the bore (0.4.7's passages had 5 rows to a rib, 6 to the arch and shared, smooth-shaded vertices: they read as
-			// flat panels, "very 2-dimensional")
-			const int ribRows = 8, archSteps = 9, across = 2 * ribRows + archSteps - 1;
-			int steps = Mathf.Max(8, Mathf.RoundToInt(nc.Depth / 1.8f));
+			// the opening: the bore's rib open from the floor to row TopRow over each rock column, lower at the two ends, so it is a rough
+			// arch cut from the bore's own rock rather than a rectangle. Its outline, walked from the passage's left foot over the top to its
+			// right foot, is the bore's vertices round the opening (the mouth ring), so passage and bore meet edge to edge.
+			int cols = nc.Span * Sub;
+			bool aLeft = Vector3.Dot(pc - pa, side) > 0f;
+			// the bore's column j (0 to cols, from the passage's left) as a fractional point, with the same arithmetic as the bore's columns
+			float ColT(int j)
+			{
+				int jj = aLeft ? j : cols - j;
+				return a + jj / Sub + (float)(jj % Sub) / Sub;
+			}
+			List<(int x, int y)> outline = new List<(int x, int y)>();   // (column, row)
+			for (int row = 0; row <= TopRow(nc, 0); row++)
+			{
+				outline.Add((0, row));
+			}
+			for (int q = 0; q < cols; q++)
+			{
+				int top = TopRow(nc, q);
+				outline.Add((q + 1, top));
+				int next = q + 1 < cols ? TopRow(nc, q + 1) : 0;
+				for (int row = top + (next > top ? 1 : -1); q + 1 < cols ? row != next + (next > top ? 1 : -1) : row >= 0; row += next > top ? 1 : -1)
+				{
+					outline.Add((q + 1, row));
+				}
+			}
+			int across = outline.Count;
+			Vector3[] mouth = new Vector3[across];
+			// each outline point's place on the passage's own section (rib up, arch over, rib down), by its share of the outline's length
+			float[] share = new float[across];
+			float run = 0f;
+			for (int k = 0; k < across; k++)
+			{
+				mouth[k] = Rib(r, ColT(outline[k].x), nc.Side, outline[k].y);
+				if (k > 0)
+				{
+					float dx = (outline[k].x - outline[k - 1].x) * nc.Width / cols;
+					float dy = RibRows[outline[k].y] - RibRows[outline[k - 1].y];
+					run += Mathf.Sqrt(dx * dx + dy * dy);
+				}
+				share[k] = run;
+			}
+			for (int k = 0; k < across; k++)
+			{
+				share[k] /= Mathf.Max(run, 0.01f);
+			}
+			// the rings start just past the deepest point of the mouth (the rib stands back up to MouthBack from the guard there)
+			float d0 = 0f;
+			foreach (Vector3 q in mouth)
+			{
+				d0 = Mathf.Max(d0, Vector3.Dot(q - nc.Mouth, o));
+			}
+			int steps = Mathf.Max(8, Mathf.RoundToInt((nc.Depth - d0) / 1.8f));
 			Vector3[][] pos = new Vector3[steps + 1][];
 			float[][] us = new float[steps + 1][];
 			Vector3[] centres = new Vector3[steps + 1];
+			float[] depths = new float[steps + 1];
 			for (int s = 0; s <= steps; s++)
 			{
-				float d = nc.Depth * s / steps;
+				float d = s == 0 ? 0f : Mathf.Lerp(d0 + 1f, nc.Depth, (s - 1f) / (steps - 1f));
 				Vector3 centre = nc.Mouth + o * d;
 				centres[s] = centre;
+				depths[s] = d;
 				pos[s] = new Vector3[across];
 				us[s] = new float[across];
 				for (int k = 0; k < across; k++)
 				{
-					// the left rib's rows, the arch, the right rib's rows (as the bore's section, smaller)
-					float lateral, height;
-					Vector2 normal;
-					if (k < ribRows)
-					{
-						lateral = -h;
-						height = high * k / (ribRows - 1f);
-						normal = new Vector2(-1f, 0f);
-					}
-					else if (k >= across - ribRows)
-					{
-						lateral = h;
-						height = high * (across - 1 - k) / (ribRows - 1f);
-						normal = new Vector2(1f, 0f);
-					}
-					else
-					{
-						float phi = Mathf.PI * (1f - (float)(k - ribRows + 1) / archSteps);
-						lateral = h * Mathf.Cos(phi);
-						height = high + rise * Mathf.Sin(phi);
-						normal = new Vector2(Mathf.Cos(phi) / h, Mathf.Sin(phi) / rise).normalized;
-					}
+					Section(share[k], h, high, rise, out float lateral, out float height, out Vector2 normal);
+					// on the ribs u is the height over the floor, as on the bore's, so the coal band runs on into the passage
+					us[s][k] = (height + 1.5f) / 24f;
 					if (s == 0)
 					{
-						height = Mathf.Min(height, high);   // the mouth is the rib's opening: flat-topped at PassageHigh
+						pos[s][k] = mouth[k];
+						continue;
 					}
 					if (k == 0 || k == across - 1)
 					{
@@ -844,14 +996,30 @@ namespace EurekaMine
 					// the whole passage slopes along its opening with the road, as its floor does: built level from the lower corner, its mouth
 					// fell short of the rib's opening at the higher corner on a grade and left a gap there (the preview's hole scan, 0.4.5)
 					at.y += Rise(at);
-					// at the mouth the passage meets the rib's opening exactly; deeper in it is as rough as the bore
-					float back = s == 0 ? 0f : Back(at, old ? 1.35f : 1f) * (s == 1 ? 0.6f : 1f);
-					pos[s][k] = at + (side * normal.x + Vector3.up * normal.y) * back;
-					// on the ribs u is the height over the floor, as on the bore's, so the coal band runs on into the passage
-					us[s][k] = k < ribRows || k >= across - ribRows ? (height + 1.5f) / 24f : 0.5f + (k - ribRows) / 9f;
+					// as rough as the bore, opening out over the first rings
+					float back = Back(at, old ? 1.35f : 1f) * Mathf.Min(1f, 0.35f + 0.25f * (s - 1));
+					Vector3 v = at + (side * normal.x + Vector3.up * normal.y) * back;
+					// never in front of the bore's rock: until 0.4.8 the first rings flared out into the open air in front of the rough rib, and
+					// from the road the passage's outside showed (one-sided, so a frame of see-through rock round every opening). Checked along
+					// the whole line from the mouth to the vertex, as the quads between them run, not at the vertex alone.
+					Vector3 m0 = pos[s - 1][k];
+					float dm = Vector3.Dot(m0 - nc.Mouth, o), dv = Vector3.Dot(v - nc.Mouth, o), need = dv;
+					for (int f = 1; f <= 8; f++)
+					{
+						Vector3 q = Vector3.Lerp(m0, v, f / 8f);
+						float t = (a + c) * 0.5f + Vector3.Dot(q - nc.Mouth, nc.Along) * nc.Span / Mathf.Max(nc.Width, 0.1f);
+						if (BoreDepth(r, t, nc.Side, q.y, nc.Mouth, o, out float bore))
+						{
+							need = Mathf.Max(need, dm + (bore - dm) * 8f / f + 1.6f);
+						}
+					}
+					v += o * (need - dv);
+					pos[s][k] = v;
 				}
 			}
-			float V(int st) => nc.Depth * st / steps / 24f;
+			nc.Rings = pos;
+			nc.RingDepth = depths;
+			float V(int st) => Vector3.Dot(centres[st] - nc.Mouth, o) / 24f;
 			for (int s = 0; s < steps; s++)
 			{
 				for (int k = 0; k < across - 1; k++)
@@ -896,7 +1064,9 @@ namespace EurekaMine
 			// 0.4.3's floor, cut to the opening, left gaps at its foot to see through), from a little inside the road, and slopes along the
 			// opening with the road (a flat floor at the lower corner left a step and a crack at the higher one); a hair under the road's
 			// floor, so where they overlap the road's shows
-			const float ext = 7f, lip = 1.5f, under = 0.12f;
+			// on the high side of a banked floor the road's floor falls away inward, so the lip goes that much deeper to stay under it
+			const float ext = 7f, lip = 1.5f;
+			float under = 0.12f + lip * Mathf.Max(0f, nc.Side * Mathf.Max(r.BankAt(a), r.BankAt(c)));
 			float slope = (pc.y - pa.y) / Mathf.Max(nc.Width, 0.1f);
 			Vector3 fa = pa - nc.Along * ext - o * lip, fc = pc + nc.Along * ext - o * lip;
 			fa.y = pa.y - under - slope * ext;
@@ -950,13 +1120,13 @@ namespace EurekaMine
 				}
 				foreach (float side in new[] { -3.2f, 3.2f })
 				{
-					Vector3 p0 = a + ra * side + Vector3.up * 0.25f, p1 = c + rc * side + Vector3.up * 0.25f;
-					Vector3 w0 = ra * 0.3f, w1 = rc * 0.3f;
+					Vector3 p0 = r.Edge(i, side, 0.25f), p1 = r.Edge(i + 1, side, 0.25f);
+					Vector3 w0 = ra * 0.3f + Vector3.up * (0.3f * r.BankAt(i)), w1 = rc * 0.3f + Vector3.up * (0.3f * r.BankAt(i + 1));
 					steel.Quad(p0 - w0, p1 - w1, p1 + w1, p0 + w0, 4f);
 				}
 				if (i % 2 == 0)
 				{
-					sleepers.Box(a + Vector3.up * 0.08f, new Vector3(9.5f, 0.2f, 1.2f), Quaternion.LookRotation(r.Forward(i), Vector3.up), 4f);
+					sleepers.Box(a + r.FloorUp(i) * 0.08f, new Vector3(9.5f, 0.2f, 1.2f), Quaternion.LookRotation(r.Forward(i), r.FloorUp(i)), 4f);
 				}
 			}
 		}
@@ -981,7 +1151,7 @@ namespace EurekaMine
 			{
 				foreach (float side in new[] { -1f, 1f })
 				{
-					Vector3 edge = r.At(i) + r.Right(i) * side * r.HalfAt(i);
+					Vector3 edge = r.Edge(i, side * r.HalfAt(i), 0f);
 					if (Route.InsideOther(r, edge + Vector3.up * 2f, 0f))
 					{
 						continue;
@@ -991,7 +1161,8 @@ namespace EurekaMine
 						// a heap of broken rock against the rib, its middle behind the guard so only its toe shows
 						float s = old ? 3.5f + (float)rng.NextDouble() * 3f : 2f + (float)rng.NextDouble() * 2.5f;
 						Vector3 at = edge + r.Right(i) * side * (s * 0.55f) + r.Forward(i) * (float)(rng.NextDouble() * 8.0);
-						rock.Heap(at, s, s * 0.55f, 7, 2, s * 0.35f, rng, 3f);
+						// on a banked floor its base sinks by the lean over its width, so no toe hangs over the floor falling away
+						rock.Heap(at - Vector3.up * (s * 1.2f * Mathf.Abs(r.BankAt(i))), s, s * 0.55f, 7, 2, s * 0.35f, rng, 3f);
 					}
 					if (rng.NextDouble() < (old ? 0.6 : 0.35))
 					{
@@ -999,7 +1170,9 @@ namespace EurekaMine
 						Vector3 f = r.Forward(i), right = r.Right(i);
 						float w = 2f + (float)rng.NextDouble() * 4f, len = 5f + (float)rng.NextDouble() * 7f;
 						Vector3 a = edge + f * (float)(rng.NextDouble() * 4.0), c = a + f * len;
-						Vector3 aIn = a - right * side * w, cIn = c - right * side * (w * 0.5f);
+						// inward from the rib, down (or up) the banked floor with it
+						float fall = side * r.BankAt(i);
+						Vector3 aIn = a - right * side * w - Vector3.up * (fall * w), cIn = c - right * side * (w * 0.5f) - Vector3.up * (fall * w * 0.5f);
 						Vector3 lift = Vector3.up * 0.12f, hump = Vector3.up * 0.35f;
 						if (side < 0f)
 						{

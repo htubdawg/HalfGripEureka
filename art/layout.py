@@ -83,7 +83,80 @@ def build():
 	roads["runin"] = runin
 	for name in ("seam", "chute", "runin"):
 		settle(roads[name], main)
+	for r in roads.values():
+		bank(r, roads)
 	return roads
+
+
+# ---- banking ---------------------------------------------------------------------------------------------------------------
+# The floor leans into the bends (the outside higher), more the tighter the bend: BANK_GAIN / radius degrees, at most BANK_MAX. Flat
+# wherever two floors are one floor (forks and joins: a branch on the lap's floor must have the lap's), in the pit bottom chamber,
+# on the plane (the runaway cars' track) and at the coal chute's ventilation doors (both built level), and on the run in.
+
+BANK_GAIN = 800.0   # degrees times units: a 115-unit bend (the spiral) about 7 degrees
+BANK_MAX = 10.0     # degrees, at the tightest bends (the switchbacks, the dip)
+BANK_EASE = 64.0    # length over which the lean comes in and goes out (curvature is averaged over it)
+
+
+def bank(road, roads):
+	"""road.bank: the tangent of the floor's lean at each point, positive with the road's right side up (a left-hand bend)."""
+	P = road.P
+	n = len(P)
+	main = roads["main"]
+
+	def at(i):
+		return P[i % n] if road.closed else P[max(0, min(n - 1, i))]
+
+	# signed curvature from the heading's change between neighbours (heading from +X toward +Z: increasing is a left turn)
+	k = []
+	for i in range(n):
+		a, b, c = at(i - 1), at(i), at(i + 1)
+		h0 = math.atan2(b[2] - a[2], b[0] - a[0])
+		h1 = math.atan2(c[2] - b[2], c[0] - b[0])
+		d = (h1 - h0 + math.pi) % (2 * math.pi) - math.pi
+		length = 0.5 * (math.hypot(b[0] - a[0], b[2] - a[2]) + math.hypot(c[0] - b[0], c[2] - b[2]))
+		k.append(d / max(1e-6, length) if 0 < i < n - 1 or road.closed else 0.0)
+	half = int(BANK_EASE / STEP / 2)
+	ks = []
+	for i in range(n):
+		window = [k[j % n] for j in range(i - half, i + half + 1)] if road.closed else [k[j] for j in range(max(0, i - half), min(n, i + half + 1))]
+		ks.append(sum(window) / len(window))
+	lean = [math.copysign(math.tan(math.radians(min(BANK_MAX, BANK_GAIN * abs(c)))), c) for c in ks]
+
+	# where the floor stays level: (start, end) in distance along this road, eased in and out over BANK_EASE
+	flat = []
+	if road.name == "main":
+		L = main.length
+		for b in ("seam", "chute", "runin"):
+			r = roads[b]
+			for end in (r.fork, r.join):
+				if end is not None:
+					flat.append((end - 160, end + 160))
+		flat.append((-18 * STEP - 24, 24 * STEP + 24))      # the pit bottom chamber (Route.Load widens -12 to 18, eased 6)
+		flat.append((main.marks["Plane head"] - 6 * STEP, main.marks["Plane foot"] + 6 * STEP))
+	else:
+		L = None
+		flat.append((-1e9, 170))
+		flat.append((road.length - 170, 1e9))
+		if road.name == "runin":
+			# level all the way: its one bend (gentle, 3 degrees) runs into the merge at the pit bottom, where a lean uncovered the back
+			# of the haulage's rock
+			flat.append((-1e9, 1e9))
+		if road.name == "chute":
+			for f in (0.3, 0.62):      # Hazards.Doors: the doors at these shares of the chute's points
+				s = round((n - 1) * f) * road.length / (n - 1)
+				flat.append((s - 6 * STEP, s + 6 * STEP))
+
+	def level(s):
+		w = 1.0
+		for a, b in flat:
+			for shift in ((0.0, L, -L) if L else (0.0,)):
+				d = max(a + shift - s, s - b - shift)       # how far outside the window (negative inside)
+				t = min(1.0, max(0.0, d / BANK_EASE))
+				w = min(w, t * t * (3 - 2 * t))
+		return w
+
+	road.bank = [lean[i] * level(P[i][3]) for i in range(n)]
 
 
 def settle(branch, main):
@@ -174,6 +247,20 @@ def clearances(roads):
 				continue
 			problems.append((ra.name, round(pa[3]), rb.name, round(pb[3]), round(abs(pa[1] - pb[1]), 1)))
 	return problems
+
+
+def edge_grades(road):
+	"""The steepest grade along either edge of the banked floor (a quick lean change tips one edge up more than the road climbs)."""
+	P, n, h = road.P, len(road.P), road.width / 2
+	worst, at = 0.0, 0
+	for i in range(n if road.closed else n - 1):
+		j = (i + 1) % n
+		d = math.hypot(P[j][0] - P[i][0], P[j][2] - P[i][2])
+		for side in (-1, 1):
+			g = abs(P[j][1] + side * h * road.bank[j] - P[i][1] - side * h * road.bank[i]) / max(1e-6, d)
+			if g > worst:
+				worst, at = g, P[i][3]
+	return worst, at
 
 
 def crossings(roads):
@@ -308,7 +395,11 @@ def main_run():
 	for r in roads.values():
 		g, at = grades(r)
 		ys = [p[1] for p in r.P]
-		print("  %-6s %6.0f long, width %d, height %.0f..%.0f, steepest %.1f%% at %.0f" % (r.name, r.length, r.width, min(ys), max(ys), g * 100, at))
+		b = max(r.bank, key=abs)
+		print("  %-6s %6.0f long, width %d, height %.0f..%.0f, steepest %.1f%% at %.0f, bank up to %.1f degrees (edge %.1f up/down)" % (
+			r.name, r.length, r.width, min(ys), max(ys), g * 100, at, math.degrees(math.atan(abs(b))), abs(b) * r.width / 2))
+		eg, eat = edge_grades(r)
+		print("         steepest along an edge of the banked floor %.1f%% at %.0f" % (eg * 100, eat))
 	for r in ("seam", "chute"):
 		rd = roads[r]
 		print("  %s saves %.0f units over the main lap's %.0f" % (r, (rd.join - rd.fork) - rd.length, rd.join - rd.fork))
@@ -340,10 +431,10 @@ def bake(roads):
 	path = os.path.join(here, "..", "EurekaMine", "src", "RouteData.cs")
 	main = roads["main"]
 
-	def floats(name, values):
+	def floats(name, values, fmt="%.2ff"):
 		out = ["\t\tinternal static readonly float[] %s =" % name, "\t\t{"]
 		for i in range(0, len(values), 12):
-			out.append("\t\t\t" + ", ".join("%.2ff" % v for v in values[i:i + 12]) + ",")
+			out.append("\t\t\t" + ", ".join(fmt % v for v in values[i:i + 12]) + ",")
 		out.append("\t\t};")
 		return out
 
@@ -369,6 +460,8 @@ def bake(roads):
 		lines += floats(cap + "X", [p[0] for p in r.P])
 		lines += floats(cap + "Y", [p[1] - SURFACE for p in r.P])
 		lines += floats(cap + "Z", [p[2] for p in r.P])
+		lines.append("\t\t/// <summary>The floor's lean at each point: the tangent of its angle, positive with the road's right side up.</summary>")
+		lines += floats(cap + "Bank", r.bank, "%.4ff")
 	lines.append("")
 	lines.append("\t\t/// <summary>Named places on the main lap, as point indexes.</summary>")
 	keys = list(main.marks)
