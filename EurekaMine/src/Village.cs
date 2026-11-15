@@ -4,7 +4,8 @@ using UnityEngine;
 namespace EurekaMine
 {
 	/// <summary>
-	/// The patch town beside the pithead: two rows of company double houses (two homes under one side-gabled roof, the commonest company
+	/// The patch town, out on its hill north-west of the yard beyond the fence and the trees (<see cref="Scenery.VillageShift"/>; it stood
+	/// beside the yard until 0.5.0, when the owner asked for a skyline rather than a town to drive round): two rows of company double houses (two homes under one side-gabled roof, the commonest company
 	/// house in the anthracite patches) backing onto an alley with their coal sheds, and a white clapboard church with a steeple at the
 	/// end of the street. Built as real buildings, not boxes: a stone foundation, clapboard walls whose laps run level, trimmed windows
 	/// and doors set in them, a roof slab with eaves, barge boards and a soffit, one brick chimney on the ridge, and a front porch on posts.
@@ -69,10 +70,10 @@ namespace EurekaMine
 				for (int k = 0; k < 9; k++)
 				{
 					float x = -2240f + k * 64f + (row == 1 ? 22f : 0f);
-					DoubleHouse(new Lot(new Vector3(x, 0f, z), yaw), (k * 3 + row) % Paint.Length, rng);
+					DoubleHouse(new Lot(new Vector3(x, 0f, z) + Scenery.VillageShift, yaw), (k * 3 + row) % Paint.Length, rng);
 				}
 			}
-			Church(new Vector3(-2050f, 0f, 560f));
+			Church(new Vector3(-2050f, 0f, 560f) + Scenery.VillageShift);
 		}
 
 		// ---- the pieces ------------------------------------------------------------------------------------------------------------

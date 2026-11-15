@@ -185,6 +185,8 @@ namespace EurekaMine
 				}
 			}
 
+			Cabin(Mathf.SmoothStep(0f, 1f, amount));
+
 			// cars come and go (a late rival): look the headlights up now and then
 			if (Time.time - headsAt > 2f)
 			{
@@ -199,6 +201,97 @@ namespace EurekaMine
 					h.spotlight.SetActive(depth > 0.2f);
 					Headlamp(h, depth);
 				}
+			}
+		}
+
+		private Light cabin;
+		private bool cabinTried;
+		private float cabinAt;
+
+		/// <summary>
+		/// The cockpit is drawn by its own camera on the INTERIOR layer and lit by the game's <c>SyncInteriorLight</c>, a directional light
+		/// that follows the sun and goes out when rays from the car to the sun are blocked: underground it is 0, and the mine's ambient (a
+		/// faint fill, see <see cref="Dark"/>) is shared with the cabin, so the gauges and the shifter went nearly black (owner, 0.4.11).
+		/// A dash lamp: one soft point light in the cabin between the driver's head and the instruments, lighting the INTERIOR layer only
+		/// (so not one pixel of the mine changes), eased in with the camera's depth like the dark itself (<see cref="Mod.CabinLight"/>).
+		/// </summary>
+		private void Cabin(float dark)
+		{
+			if (cabin == null)
+			{
+				if (cabinTried && Time.time - cabinAt < 2f)
+				{
+					return;
+				}
+				cabinTried = true;
+				cabinAt = Time.time;
+				MakeCabin();
+				if (cabin == null)
+				{
+					return;
+				}
+			}
+			float level = Mathf.Max(0f, Mod.CabinLight.Value);
+			cabin.enabled = dark > 0.01f && level > 0f;
+			cabin.intensity = cabinScale * level * dark;
+		}
+
+		private float cabinScale;
+
+		private void MakeCabin()
+		{
+			try
+			{
+				CarLink link = null;
+				foreach (CarLink l in FindObjectsByType<CarLink>(FindObjectsSortMode.None))
+				{
+					if (l != null && l.cc != null && l.cc.interiorCamera != null)
+					{
+						link = l;
+						break;
+					}
+				}
+				int layer = LayerMask.NameToLayer("INTERIOR");
+				if (link == null || layer < 0)
+				{
+					return;
+				}
+				Transform cam = link.cc.interiorCamera.transform;
+				// the instruments and the shifter, where the game's car has them
+				Vector3 sum = Vector3.zero;
+				int n = 0;
+				foreach (Component c in new Component[] { link.dialrpm, link.dialspeed, link.sa, link.sw })
+				{
+					if (c != null)
+					{
+						sum += c.transform.position;
+						n++;
+					}
+				}
+				Vector3 dash = n > 0 ? sum / n : cam.position + cam.forward * 8f - cam.up * 3f;
+				float d = Mathf.Max(0.5f, Vector3.Distance(cam.position, dash));
+				GameObject go = new GameObject("Eureka cabin lamp");
+				go.transform.SetParent(cam.parent != null ? cam.parent : cam, true);
+				// over the driver's knees, a little above the line from the eyes to the dash: the light falls on the gauges' faces and the gate
+				go.transform.position = Vector3.Lerp(cam.position, dash, 0.45f) + cam.up * (0.2f * d);
+				cabin = go.AddComponent<Light>();
+				cabin.type = LightType.Point;
+				cabin.cullingMask = 1 << layer;
+				cabin.shadows = LightShadows.None;
+				cabin.renderMode = LightRenderMode.ForcePixel;
+				cabin.color = new Color(1f, 0.88f, 0.72f);
+				float reach = Vector3.Distance(go.transform.position, dash);
+				cabin.range = Mathf.Max(reach * 3f, d * 1.6f);
+				// URP falls off as intensity over distance squared: scaled so CabinLight is the light that reaches the instruments
+				cabinScale = reach * reach;
+				cabin.intensity = 0f;
+				Mod.Log.LogInfo("Cabin lamp: " + n + " instruments found, " + d.ToString("0.00") + " from the eyes to them, range " + cabin.range.ToString("0.00")
+					+ ", intensity " + cabinScale.ToString("0.00") + " x CabinLight " + Mod.CabinLight.Value + " underground");
+			}
+			catch (System.Exception e)
+			{
+				Mod.Log.LogWarning("Could not make the cabin lamp: " + e.Message);
+				cabin = null;
 			}
 		}
 
@@ -327,6 +420,10 @@ namespace EurekaMine
 				Restore();
 			}
 			RestoreLamps();
+			if (cabin != null)
+			{
+				Destroy(cabin.gameObject);
+			}
 		}
 	}
 

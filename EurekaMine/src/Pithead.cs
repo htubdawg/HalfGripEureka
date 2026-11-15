@@ -23,6 +23,7 @@ namespace EurekaMine
 			CulmBanks(b, rng);
 			Siding(b);
 			Village.Build(b, rng);
+			Scenery.Build(b);
 			Headframe(b);
 			Stack(b);
 			YardDressing(b);
@@ -250,7 +251,7 @@ namespace EurekaMine
 			}
 			for (int k = 0; k < 7; k++)
 			{
-				float x = -1840f + k * 27f;
+				float x = -1740f + k * 27f;
 				// a hopper: a box body over the wheels, with its sloping chutes under it
 				steel.Box(new Vector3(x, 8.5f, z), new Vector3(24f, 9f, 9.5f), Quaternion.identity, 6f);
 				steel.Box(new Vector3(x - 5f, 3.2f, z), new Vector3(7f, 3f, 7f), Quaternion.Euler(0f, 0f, 20f), 6f);

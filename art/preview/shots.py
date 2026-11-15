@@ -40,10 +40,19 @@ shots = [
     dict(name="19_upper_gangway", **inside("haulage", 440, 6, 9), opts=dark),
     dict(name="21_plane_head_spur", **inside("haulage", 86, 4, 9), opts=dark),
     dict(name="22_plane_foot_spur", **inside("haulage", 124, 6, 9), opts=dark),
-    dict(name="30_village", eye=[-1700, 40, 140], at=[-2000, 10, 360], opts=dict(fog=2500)),
-    dict(name="31_house_close", eye=[-1940, 14, 240], at=[-1984, 14, 300], opts=dict(fog=2500)),
-    dict(name="32_church", eye=[-2000, 22, 440], at=[-2050, 40, 545], opts=dict(fog=2500)),
-    dict(name="33_house_backs", eye=[-1900, 30, 345], at=[-2000, 10, 340], opts=dict(fog=2500)),
+    dict(name="30_village", eye=[-2000, 95, 590], at=[-2300, 65, 810], opts=dict(sky=True)),
+    dict(name="31_house_close", eye=[-2240, 69, 690], at=[-2284, 69, 750], opts=dict(sky=True)),
+    dict(name="32_church", eye=[-2300, 77, 890], at=[-2350, 95, 995], opts=dict(sky=True)),
+    dict(name="33_house_backs", eye=[-2200, 85, 795], at=[-2300, 65, 790], opts=dict(sky=True)),
+    # 0.5.0: the yard before sunrise, the skyline, the fence (Forest pines and tree lines drawn as the stand-ins Scenery makes)
+    dict(name="60_dawn_grid", eye=[-1560, 14, -60], at=[-1200, 22, -80], opts=dict(sky=True)),
+    dict(name="61_dawn_west", eye=[-1240, 14, -80], at=[-1760, 22, -80], opts=dict(sky=True)),
+    dict(name="62_dawn_town", eye=[-1560, 14, 60], at=[-2275, 70, 890], opts=dict(sky=True)),
+    dict(name="63_dawn_south", eye=[-1450, 14, -60], at=[-1450, 20, -700], opts=dict(sky=True)),
+    dict(name="64_dawn_aerial", eye=[-2700, 320, -1400], at=[-1450, 0, -80], opts=dict(sky=True)),
+    dict(name="65_fence", eye=[-1735, 9, 110], at=[-1800, 6, 175], opts=dict(sky=True)),
+    dict(name="66_dawn_sky_east", eye=[-1500, 14, -80], at=[-1000, 200, 120], opts=dict(sky=True)),
+    dict(name="67_dawn_overhead", eye=[-1460, 1400, -900], at=[-1460, 0, -80], opts=dict(sky=True, fov=60)),
     dict(name="20_slope_lower", **inside("slope", 120, 8, 9), opts=dark),
 ]
 

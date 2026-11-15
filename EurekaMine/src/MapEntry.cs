@@ -85,7 +85,8 @@ namespace EurekaMine
 			map.timeMid = source.timeMid * scale;
 			map.timeLate = source.timeLate * scale;
 
-			// The Stadium's grey ash day without the ash: an overcast coal-country sky over the pithead.
+			// The Stadium's grey ash day without the ash: the half hour before sunrise over the pithead (the sky itself is painted, see
+			// Backdrop.Sky), or 0.4's overcast coal-country sky
 			if (source.weather != null)
 			{
 				WeatherProfile weather = UnityEngine.Object.Instantiate(source.weather);
@@ -95,11 +96,28 @@ namespace EurekaMine
 				weather.ash = false;
 				weather.headlightsActive = false;
 				weather.fogActive = true;
-				weather.fogColor = new Color(0.46f, 0.45f, 0.44f);
-				weather.fogStart = 80f;
-				weather.fogEnd = 2200f;
 				weather.gripExponent = 1f;
 				weather.gripMultiplier = 1f;
+				if (Mod.DawnSky.Value)
+				{
+					// cool light from the sky overhead, a warm rose from the dawn glow low in the east, a faint blue-grey from the ground;
+					// the fog the haze at the foot of the painted sky, so the country runs into the ridges
+					weather.ambientSkyColor = new Color(0.34f, 0.40f, 0.60f);
+					weather.ambientEquatorColor = new Color(0.72f, 0.62f, 0.64f);
+					weather.ambientGroundColor = new Color(0.20f, 0.20f, 0.24f);
+					weather.directionalLightColor = new Color(0.95f, 0.68f, 0.58f);
+					weather.directionalLightIntensity = 1.05f;
+					weather.fogColor = new Color(SkyPaint.Haze[0], SkyPaint.Haze[1], SkyPaint.Haze[2]);
+					weather.fogStart = 150f;
+					weather.fogEnd = 3000f;
+					weather.skyboxColor = weather.fogColor;
+				}
+				else
+				{
+					weather.fogColor = new Color(0.46f, 0.45f, 0.44f);
+					weather.fogStart = 80f;
+					weather.fogEnd = 2200f;
+				}
 				map.weather = weather;
 			}
 

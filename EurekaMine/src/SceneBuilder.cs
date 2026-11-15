@@ -82,6 +82,7 @@ namespace EurekaMine
 			hidden.Clear();
 			root = null;
 			RunIn.Reset();
+			Backdrop.Restore();
 		}
 
 		private static void Hide(GameObject go)
@@ -131,6 +132,7 @@ namespace EurekaMine
 			Labels.Clear();
 			root = new GameObject("EurekaMine");
 
+			Backdrop.Prepare();
 			Dictionary<string, Batch> batches = new Dictionary<string, Batch>();
 			Mine.Build(batches);
 			Pithead.Build(batches);
@@ -156,6 +158,8 @@ namespace EurekaMine
 				}
 			}
 			BuildLabels(layer);
+			Backdrop.Place(root.transform);
+			Backdrop.Sky();
 			Mod.Info("Eureka Mine: " + meshes + " meshes, " + triangles + " triangles, " + Mine.Lamps.Count + " lamps");
 
 			PathManager line = Rewire(tm);

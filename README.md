@@ -2,9 +2,9 @@
 
 # Eureka Mine for Half Grip
 
-**Version 0.4.11** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
+**Version 0.5.0** · for Half Grip Demo 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6 or newer
 
-A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker. The race runs into the drift mouth and
+A race map in a Pennsylvania coal mine. The grid is in the pithead yard under the breaker, in the half hour before sunrise. The race runs into the drift mouth and
 down the slope, and every lap after that is underground. It is dealt into your runs like any other map.
 
 *100% AI generated code.*
@@ -17,7 +17,7 @@ About **6.5 km** a lap on three levels, plus a 1.4 km run in from the surface on
 
 | Where | What happens there |
 |---|---|
-| **Pithead yard** | The grid, under the breaker's loading gallery, with the culm banks, a siding of hopper cars and the company houses behind |
+| **Pithead yard** | The grid, under the breaker's loading gallery, with the culm banks and a siding of hopper cars. A fence keeps the race in the yard; past it are pines, the patch town on its hill, tree lines and the ridges against the dawn |
 | **The slope** | Into the drift mouth and down at about 10% to the pit bottom. Lap 1 only: a timber gate shuts behind the field |
 | **Pit bottom and the haulage** | The start line and a long lit straight on the rails |
 | **The plane** | A straight 10% drop to the lower gangway. Now and then a string of **runaway mine cars** breaks loose from a heading at the top, runs down the rails in the middle of the plane, and turns off into a heading at the foot |
@@ -59,6 +59,7 @@ In `BepInEx\config\halfgrip.eurekamine.cfg`, written the first time the game run
 |---|---|---|
 | `Map.TestMode` | `false` | Every race is in Eureka Mine, to try it out |
 | `Map.BenchmarkFactor` | `1.0` | Scales the "finish under X s" objectives. Lower is harder |
+| `Map.DawnSky` | `true` | The pithead before sunrise: a painted dawn sky with the ridges on the horizon, and its light. Off: 0.4's overcast grey |
 | `Surfaces.HaulageGrip` | `1.3` | Grip on the haulage and the slope (1 is the game's plain tarmac) |
 | `Surfaces.OldWorkingsGrip`, `OldWorkingsDrag` | `0.85`, `1.4` | Grip (a share of the haulage's) and rolling resistance in the old workings |
 | `Surfaces.ChuteGrip`, `ChuteDrag` | `0.68`, `1.35` | Grip (a share of the haulage's) and rolling resistance on the coal chute |
@@ -66,6 +67,7 @@ In `BepInEx\config\halfgrip.eurekamine.cfg`, written the first time the game run
 | `Mine.LampBrightness` | `1.0` | Brightness of the bulbs' light on the rock. Higher is brighter |
 | `Mine.HeadlightBoost` | `8` | Underground, the cars' headlights are this many times as bright as the game's own (1: the game's) |
 | `Mine.HeadlightAngle` | `110` | Underground, the headlights' cone in degrees, at least |
+| `Mine.CabinLight` | `0.35` | Underground, a soft dash lamp lights the cockpit (gauges, shifter, wheel) and nothing else. 0 for none |
 | `Mine.Lights` | `8` | Only if the lamps' light can't be painted (the log says so): real lights moved to the lamps nearest the camera. Lower is cheaper |
 | `Hazards.RunawayCars`, `CoalChutes`, `VentDoors` | `true` | Switch each hazard on or off |
 | `Hazards.DoorSpeedKept` | `0.8` | Share of its speed a car keeps after bursting through a shut door |
